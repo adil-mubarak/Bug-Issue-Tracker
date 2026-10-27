@@ -1,0 +1,41 @@
+openapi: 3.1.0
+info:
+  title: Bug Issue Tracker Gateway
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      summary: Gateway liveness check
+      responses:
+        '200': { description: Alive }
+  /ready:
+    get:
+      summary: Gateway readiness check
+      responses:
+        '200': { description: Ready }
+  /auth/{path}:
+    parameters:
+      - name: path
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      summary: Forward a public auth request
+      responses:
+        '200': { description: Forwarded response }
+  /projects:
+    get:
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Forwarded response }
+  /issues:
+    get:
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Forwarded response }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

@@ -1,6 +1,6 @@
 # Bug / Issue Tracker
 
-A project and issue tracking application built as a Go microservices system with a React frontend and MySQL. This repository is currently at the planning stage; the implementation and runnable development commands will be added as the phases below are completed.
+A project and issue tracking application built as a Go microservices system with a React frontend and MySQL.
 
 ## Project goals
 
@@ -8,7 +8,7 @@ A project and issue tracking application built as a Go microservices system with
 - Provide authenticated APIs through a single gateway.
 - Keep each service responsible for its own data and database.
 - Demonstrate practical data structures and algorithms in tested, focused packages.
-- Run the system locally with Docker Compose when the foundation phase is implemented.
+- Run the system locally with Docker Compose.
 
 ## Planned architecture
 
@@ -40,7 +40,7 @@ Each service owns its database and accesses another service only through its API
 - **Storage:** MySQL, with schema migrations
 - **Authentication:** bcrypt password hashing and JWT
 - **Service API:** REST or gRPC for synchronous service calls; API contracts in `contracts/`
-- **Events:** NATS or Redis Streams (choice to be finalized)
+- **Events:** NATS
 - **Local environment and CI:** Docker Compose and GitHub Actions
 
 ## Planned features
@@ -60,6 +60,18 @@ Each service owns its database and accesses another service only through its API
 - Token-bucket rate limiter in the gateway
 - Optional: priority queue and Union-Find
 
+## Implemented
+
+- Docker Compose development stack: MySQL, golang-migrate, NATS, gateway, auth,
+  project, issue, activity, and frontend containers.
+- Auth registration/login with bcrypt and HS256 JWTs; protected gateway proxy.
+- Project CRUD and membership checks; issue CRUD, filtering, labels, and
+  keyset pagination; NATS-powered activity feed.
+- Shared liveness/readiness handlers and request-ID middleware.
+- Tested LRU, dependency graph, trie, and token-bucket packages.
+- Issue dependency creation rejects cycles using the graph package.
+- Responsive React UI for login, projects, and issue tracking.
+
 ## Build roadmap
 
 The work is planned in phases so each service and its documentation can be developed and validated incrementally:
@@ -77,9 +89,92 @@ See [`Build_Plan_Bug_Issue_Tracker.md`](Build_Plan_Bug_Issue_Tracker.md) for the
 
 ## Getting started
 
-The repository does not yet contain the application services or development environment, so there are no runnable setup commands at this stage. Once Phase 0 is implemented, this section will document prerequisites, environment variables, database migrations, and the Docker Compose startup command.
+### Prerequisites
+
+- Docker Engine and the Docker Compose plugin
+- GNU Make
+- Go 1.24+ (for local tests)
+- Node.js 20+ and npm (for the frontend)
+- `golangci-lint` (for `make lint`)
+
+### Common development commands
+
+Run `make` or `make help` to list targets. Examples:
+
+```sh
+make docker-up                                     # MySQL, NATS, then migrations
+make run-bug-issue-tracker                         # run frontend + backend locally
+make run-backend                                   # run Go services locally
+make run-frontend                                  # run the Vite frontend locally
+make migrate-up                                    # migrate all service databases
+make migrate-up MIGRATE_DATABASE=issue_db          # migrate one database
+make migrate-status MIGRATE_DATABASE=issue_db
+make migrate-down MIGRATE_DATABASE=issue_db        # roll back one migration
+make docker-app-up                                 # run the entire stack in containers
+make docker-status && make docker-down             # inspect, then stop containers
+make test && make lint
+make build
+```
+
+For local app execution, start dependencies with `make docker-up` first. The
+run targets use `.env` for credentials and published dependency ports. Run
+`cd frontend && npm ci` once before `make run-frontend` or `make build`. The
+local Vite UI listens on `http://localhost:5173`; the local gateway listens on
+`http://localhost:8080`.
+
+`migrate-up` applies pending migrations to all service databases by default;
+set `MIGRATE_DATABASE` to target one. `migrate-status` reports the applied
+version and pending versions, or the migration error/dirty state. `migrate-down`
+rolls back one migration in `auth_db` by default; select another database with
+`MIGRATE_DATABASE` and adjust the step count with `MIGRATE_STEPS` if needed.
+Rollback changes schema and may remove data.
+
+Override the Compose file when needed, for example:
+
+```sh
+make docker-status COMPOSE_FILE=compose.override.yml
+```
+
+`make docker-down` does not remove volumes. To intentionally delete the local
+MySQL data, use `docker compose down -v` separately; this is destructive and
+cannot be undone.
+
+### Start the development stack
+
+Create a local environment file and set strong, non-empty secrets before
+starting Compose. Use hexadecimal values so the MySQL migration URL remains
+unambiguous:
+
+```sh
+cp .env.example .env
+openssl rand -hex 24  # use the output for MYSQL_ROOT_PASSWORD
+openssl rand -hex 32  # use the output for JWT_SECRET
+```
+
+Edit `.env` to set both values. Compose refuses to start if either is missing.
+Published MySQL and NATS ports bind to localhost only by default.
+
+```sh
+make docker-up
+```
+
+This starts MySQL and NATS and applies migrations, but does not start the app.
+For local development, run `make run-bug-issue-tracker` in another terminal.
+For the all-container setup, use `make docker-app-up`; the UI is available at
+`http://localhost:3000` and gateway at `http://localhost:8080`. MySQL is
+available at `localhost:3306` (localhost only), with separate `auth_db`,
+`project_db`, `issue_db`, and `activity_db` databases. To stop the containers:
+
+```sh
+make docker-down
+```
+
+To remove the local database data as well, run `docker compose down -v`.
+
 
 ## Documentation
 
 - [`Build_Plan_Bug_Issue_Tracker.md`](Build_Plan_Bug_Issue_Tracker.md) — detailed phased build plan
-- `docs/ARCHITECTURE.md` — planned home for architecture decisions and service/event-flow diagrams
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — architecture and service/event-flow details
+- [`docs/CONTEXT.md`](docs/CONTEXT.md) — implementation and environment context
+- [`docs/AGENTS-SKILLS.md`](docs/AGENTS-SKILLS.md) — agent and skill notes

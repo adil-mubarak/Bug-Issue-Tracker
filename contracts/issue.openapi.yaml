@@ -1,0 +1,60 @@
+openapi: 3.1.0
+info:
+  title: Issue API
+  version: 1.0.0
+security: [{ bearerAuth: [] }]
+paths:
+  /issues:
+    get:
+      summary: List project issues with filters and keyset pagination
+      parameters:
+        - { name: project_id, in: query, required: true, schema: { type: integer } }
+        - { name: status, in: query, schema: { type: string, enum: [todo, in_progress, done] } }
+        - { name: priority, in: query, schema: { type: string, enum: [low, medium, high, critical] } }
+        - { name: assignee_id, in: query, schema: { type: integer } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: label, in: query, description: Comma-separated label names; all must match, schema: { type: string } }
+        - { name: after_id, in: query, schema: { type: integer } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50 } }
+      responses:
+        '200': { description: Issue list }
+    post:
+      summary: Create an issue
+      responses:
+        '201': { description: Issue created }
+  /issues/{issueId}:
+    parameters:
+      - { name: issueId, in: path, required: true, schema: { type: integer } }
+    get:
+      summary: Get issue details
+      responses:
+        '200': { description: Issue }
+    put:
+      summary: Update an issue
+      responses:
+        '200': { description: Updated }
+    delete:
+      summary: Delete an issue
+      responses:
+        '204': { description: Deleted }
+  /issues/{issueId}/labels:
+    post:
+      summary: Attach a label to an issue
+      responses:
+        '201': { description: Label attached }
+  /issues/{issueId}/dependencies:
+    get:
+      summary: List issues blocking this issue
+      responses:
+        '200': { description: Dependency issue IDs }
+    post:
+      summary: Add a blocking dependency, rejecting cycles
+      responses:
+        '201': { description: Dependency added }
+        '409': { description: Dependency creates a cycle }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

@@ -1,0 +1,38 @@
+openapi: 3.1.0
+info:
+  title: Auth API
+  version: 1.0.0
+paths:
+  /auth/register:
+    post:
+      summary: Register a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credentials'
+      responses:
+        '201': { description: User created }
+        '400': { description: Invalid request }
+        '409': { description: Email already registered }
+  /auth/login:
+    post:
+      summary: Log in and receive a JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credentials'
+      responses:
+        '200': { description: Access token issued }
+        '401': { description: Invalid credentials }
+components:
+  schemas:
+    Credentials:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8, maxLength: 72 }

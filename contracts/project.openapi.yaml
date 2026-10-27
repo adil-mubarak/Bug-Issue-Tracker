@@ -1,0 +1,53 @@
+openapi: 3.1.0
+info:
+  title: Project API
+  version: 1.0.0
+security: [{ bearerAuth: [] }]
+paths:
+  /projects:
+    get:
+      summary: List projects for the current member
+      responses:
+        '200': { description: Project list }
+    post:
+      summary: Create a project
+      responses:
+        '201': { description: Project created }
+  /projects/{projectId}:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      summary: Get project details
+      responses:
+        '200': { description: Project }
+    put:
+      summary: Update a project
+      responses:
+        '200': { description: Updated }
+    delete:
+      summary: Delete a project
+      responses:
+        '204': { description: Deleted }
+  /projects/{projectId}/members:
+    post:
+      summary: Add a project member
+      responses:
+        '201': { description: Member added }
+    delete:
+      summary: Remove a project member using user_id query parameter
+      responses:
+        '204': { description: Member removed }
+  /projects/{projectId}/members/check:
+    get:
+      summary: Check whether the current user is a member
+      responses:
+        '200': { description: Membership result }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
