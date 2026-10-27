@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Trackline Design System &amp; UI Component Specimen</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-tertiary-container": "#ffd4a4",
+            "background": "#f8f9ff",
+            "outline": "#777587",
+            "tertiary-container": "#885500",
+            "on-surface": "#0b1c30",
+            "surface-tint": "#4d44e3",
+            "on-primary": "#ffffff",
+            "primary-container": "#4f46e5",
+            "on-tertiary": "#ffffff",
+            "surface-variant": "#d3e4fe",
+            "on-primary-container": "#dad7ff",
+            "on-primary-fixed": "#0f0069",
+            "surface-container-highest": "#d3e4fe",
+            "surface-bright": "#f8f9ff",
+            "inverse-on-surface": "#eaf1ff",
+            "inverse-primary": "#c3c0ff",
+            "on-secondary-fixed": "#131b2e",
+            "on-secondary": "#ffffff",
+            "on-background": "#0b1c30",
+            "on-primary-fixed-variant": "#3323cc",
+            "primary-fixed": "#e2dfff",
+            "secondary": "#565e74",
+            "surface-container": "#e5eeff",
+            "on-secondary-container": "#5c647a",
+            "tertiary-fixed-dim": "#ffb95f",
+            "primary": "#3525cd",
+            "surface-container-lowest": "#ffffff",
+            "primary-fixed-dim": "#c3c0ff",
+            "outline-variant": "#c7c4d8",
+            "tertiary": "#684000",
+            "inverse-surface": "#213145",
+            "error": "#ba1a1a",
+            "on-surface-variant": "#464555",
+            "surface-container-high": "#dce9ff",
+            "secondary-container": "#dae2fd",
+            "surface": "#f8f9ff",
+            "on-error-container": "#93000a",
+            "surface-dim": "#cbdbf5",
+            "on-tertiary-fixed-variant": "#653e00",
+            "on-error": "#ffffff",
+            "on-secondary-fixed-variant": "#3f465c",
+            "surface-container-low": "#eff4ff",
+            "error-container": "#ffdad6",
+            "secondary-fixed": "#dae2fd",
+            "tertiary-fixed": "#ffddb8",
+            "secondary-fixed-dim": "#bec6e0",
+            "on-tertiary-fixed": "#2a1700"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "gutter": "1rem",
+            "space-lg": "1rem",
+            "space-md": "0.75rem",
+            "space-xl": "1.5rem",
+            "space-xs": "0.25rem",
+            "margin": "1.5rem",
+            "space-sm": "0.5rem",
+            "gutter-dense": "0.5rem",
+            "margin-panel": "1rem"
+          },
+          "fontFamily": {
+            "label-sm": ["Inter"],
+            "headline-md": ["Inter"],
+            "headline-sm": ["Inter"],
+            "code-sm": ["Inter"],
+            "display": ["Inter"],
+            "headline-lg": ["Inter"],
+            "body-md": ["Inter"],
+            "label-md": ["Inter"],
+            "body-sm": ["Inter"],
+            "body-lg": ["Inter"]
+          },
+          "fontSize": {
+            "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+            "headline-md": ["18px", {"lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+            "headline-sm": ["15px", {"lineHeight": "20px", "letterSpacing": "-0.005em", "fontWeight": "600"}],
+            "code-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+            "display": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+            "headline-lg": ["22px", {"lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600"}],
+            "body-md": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+            "label-md": ["13px", {"lineHeight": "18px", "fontWeight": "500"}],
+            "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+            "body-lg": ["15px", {"lineHeight": "22px", "fontWeight": "400"}]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .material-symbols-outlined.fill {
+      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background-color: #cbd5e1;
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface font-body-md antialiased min-h-screen selection:bg-primary selection:text-on-primary">
+<!-- Shared Component: SideNavBar -->
+<aside class="fixed top-0 left-0 h-screen w-60 z-30 bg-surface-container-lowest dark:bg-inverse-surface border-r border-outline-variant dark:border-outline shadow-sm flex flex-col justify-between p-4">
+<div class="flex flex-col gap-6">
+<div class="flex items-center gap-2 text-headline-md font-headline-md text-primary dark:text-inverse-primary px-1">
+<span class="material-symbols-outlined text-primary fill" data-icon="polymer" style="font-variation-settings: 'FILL' 1; font-size: 24px;">polymer</span>
+<div class="flex flex-col">
+<span class="font-semibold text-headline-sm leading-tight text-on-surface">Trackline</span>
+<span class="text-label-sm font-label-sm text-secondary">Engineering Workspace</span>
+</div>
+</div>
+<button class="flex items-center justify-center gap-1.5 w-full py-1.5 px-3 rounded-lg bg-primary-container text-on-primary font-label-md text-label-md hover:bg-primary transition-colors duration-150 shadow-sm active:scale-[0.99]">
+<span>+ New project</span>
+</button>
+<nav class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container-low dark:hover:bg-on-surface-variant/50 transition-colors" href="#projects">
+<span class="material-symbols-outlined" data-icon="folder">folder</span>
+<span class="text-label-md font-label-md">Projects</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container-low dark:hover:bg-on-surface-variant/50 transition-colors" href="#issues">
+<span class="material-symbols-outlined" data-icon="checklist">checklist</span>
+<span class="text-label-md font-label-md">My issues</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container-low dark:hover:bg-on-surface-variant/50 transition-colors" href="#activity">
+<span class="material-symbols-outlined" data-icon="pulse">switch_account</span>
+<span class="text-label-md font-label-md">Activity</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-container-high dark:bg-on-surface-variant text-primary dark:text-inverse-primary font-medium" href="#analytics">
+<span class="material-symbols-outlined fill" data-icon="monitoring" style="font-variation-settings: 'FILL' 1;">monitoring</span>
+<span class="text-label-md font-label-md">Analytics</span>
+</a>
+</nav>
+</div>
+<div class="flex flex-col gap-1 border-t border-outline-variant/40 pt-4">
+<div class="flex items-center gap-3 px-3 py-2 rounded-lg text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container-low transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-secondary" data-icon="account_circle">account_circle</span>
+<span class="text-label-md font-label-md">Alex Rivers</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2 rounded-lg text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container-low transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-secondary" data-icon="settings">settings</span>
+<span class="text-label-md font-label-md">Workspace settings</span>
+</div>
+</div>
+</aside>
+<!-- App Wrapper with TopNavBar and Main Canvas -->
+<div class="pl-60 min-h-screen flex flex-col">
+<!-- Shared Component: TopNavBar -->
+<header class="sticky top-0 right-0 h-14 z-20 bg-surface-container-lowest dark:bg-inverse-surface border-b border-outline-variant dark:border-outline shadow-sm flex items-center justify-between w-full px-6">
+<div class="flex items-center gap-4">
+<span class="text-headline-md font-headline-md font-semibold text-primary dark:text-inverse-primary">Trackline</span>
+<span class="text-outline-variant font-light">/</span>
+<div class="flex items-center gap-2 text-label-md font-label-md">
+<span class="text-secondary hover:text-on-surface cursor-pointer">Projects</span>
+<span class="text-outline-variant">/</span>
+<span class="text-secondary hover:text-on-surface cursor-pointer">Mobile App v2.4</span>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface dark:text-inverse-on-surface font-semibold">Board</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="relative w-64">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-secondary text-sm" data-icon="search">search</span>
+<input class="w-full h-8 pl-8 pr-8 bg-surface border border-outline-variant/60 rounded-lg text-body-sm font-body-sm text-on-surface focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container placeholder-secondary/60" placeholder="Search tokens &amp; components..." type="text"/>
+<span class="absolute right-2 top-1/2 -translate-y-1/2 text-label-sm font-code-sm bg-surface-container text-secondary px-1.5 py-0.5 rounded border border-outline-variant/40">⌘K</span>
+</div>
+<button class="h-8 px-3 rounded-lg bg-primary-container text-on-primary font-label-md text-label-md hover:bg-primary transition-all duration-150 active:scale-95 flex items-center gap-1 shadow-sm">
+<span>+ New issue</span>
+</button>
+<button class="p-1.5 rounded-lg text-secondary hover:bg-surface-container hover:text-on-surface transition-colors" title="Notifications">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-1.5 rounded-lg text-secondary hover:bg-surface-container hover:text-on-surface transition-colors" title="Help">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+</button>
+<div class="w-7 h-7 rounded-full bg-primary-container text-on-primary font-label-sm font-semibold flex items-center justify-center ring-2 ring-surface-container" title="Alex Rivers avatar">
+          AR
+        </div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="p-8 max-w-[1200px] w-full mx-auto space-y-10">
+<!-- Specimen Header -->
+<section class="bg-surface-container-lowest border border-outline-variant/50 rounded-xl p-6 shadow-sm">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-sm text-label-sm uppercase tracking-wide">Design System v2.4</span>
+<span class="text-label-sm text-secondary font-code-sm">TRK-SPEC-06</span>
+</div>
+<h1 class="text-display font-display text-on-surface">Trackline Design System &amp; UI Component Specimen</h1>
+<p class="text-body-lg font-body-lg text-secondary mt-1">Production tokens, atomic primitives, and interactive card states. Font: Inter, Radius: 12px, Primary: Indigo #4F46E5</p>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2 text-label-sm font-code-sm px-3 py-1.5 bg-surface-container-low border border-outline-variant/40 rounded-lg text-secondary">
+<span class="w-3 h-3 rounded-full bg-primary-container inline-block"></span>
+              #4F46E5 Primary
+            </div>
+<button class="px-3 py-1.5 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-lg text-label-md font-label-md transition-colors flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm" data-icon="download">download</span>
+              Export JSON
+            </button>
+</div>
+</div>
+</section>
+<!-- Section 1: Buttons Section -->
+<section class="bg-surface-container-lowest border border-outline-variant/50 rounded-xl p-6 shadow-sm space-y-6">
+<div class="border-b border-outline-variant/30 pb-3 flex items-center justify-between">
+<div>
+<h2 class="text-headline-md font-headline-md text-on-surface">1. Buttons &amp; Action Primitives</h2>
+<p class="text-body-sm font-body-sm text-secondary">Height 32px (compact) &amp; 36px (regular), Radius 6px/8px, 4px grid rhythm</p>
+</div>
+<span class="text-label-sm font-code-sm text-secondary bg-surface-container px-2 py-0.5 rounded">atomic/buttons</span>
+</div>
+<!-- Button Matrix -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+<!-- Primary Variants -->
+<div class="space-y-3 p-4 bg-surface-container-low/50 rounded-xl border border-outline-variant/30">
+<span class="text-label-sm font-code-sm text-secondary font-semibold uppercase tracking-wider">Primary State Matrix</span>
+<div class="flex flex-col gap-2.5">
+<button class="h-9 px-3.5 rounded-lg bg-primary-container text-on-primary text-label-md font-label-md hover:bg-primary transition-colors flex items-center justify-center shadow-sm">
+                Primary Default
+              </button>
+<button class="h-9 px-3.5 rounded-lg bg-primary text-on-primary text-label-md font-label-md shadow-sm flex items-center justify-center ring-2 ring-primary-fixed">
+                Primary Hover State
+              </button>
+<button class="h-9 px-3.5 rounded-lg bg-on-primary-fixed-variant text-on-primary text-label-md font-label-md scale-[0.98] shadow-inner flex items-center justify-center">
+                Primary Active State
+              </button>
+<button class="h-9 px-3.5 rounded-lg bg-outline-variant/40 text-on-surface-variant/40 text-label-md font-label-md cursor-not-allowed flex items-center justify-center" disabled="">
+                Primary Disabled
+              </button>
+<button class="h-9 px-3.5 rounded-lg bg-primary-container text-on-primary text-label-md font-label-md flex items-center justify-center gap-2">
+<svg class="animate-spin h-4 w-4 text-white" fill="none" viewbox="0 0 24 24">
+<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+<path class="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" fill="currentColor"></path>
+</svg>
+                Processing...
+              </button>
+</div>
+</div>
+<!-- Secondary / Outline -->
+<div class="space-y-3 p-4 bg-surface-container-low/50 rounded-xl border border-outline-variant/30">
+<span class="text-label-sm font-code-sm text-secondary font-semibold uppercase tracking-wider">Secondary &amp; Outline</span>
+<div class="flex flex-col gap-2.5">
+<button class="h-9 px-3.5 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface text-label-md font-label-md hover:bg-surface-container transition-colors shadow-sm flex items-center justify-center">
+                Secondary Default
+              </button>
+<button class="h-9 px-3.5 rounded-lg bg-surface-container border border-outline text-on-surface text-label-md font-label-md shadow-sm flex items-center justify-center">
+                Secondary Hovered
+              </button>
+<button class="h-9 px-3.5 rounded-lg bg-surface-container-high border border-outline text-on-surface text-label-md font-label-md shadow-inner flex items-center justify-center">
+                Secondary Active
+              </button>
+<button class="h-9 px-3.5 rounded-lg bg-surface border border-outline-variant/30 text-outline-variant text-label-md font-label-md cursor-not-allowed flex items-center justify-center" disabled="">
+                Secondary Disabled
+              </button>
+<button class="h-9 px-3.5 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface text-label-md font-label-md flex items-center justify-center gap-1.5">
+<span class="material-symbols-outlined text-sm" data-icon="tune">tune</span>
+                Custom Filter
+              </button>
+</div>
+</div>
+<!-- Ghost / Subtle & Danger -->
+<div class="space-y-3 p-4 bg-surface-container-low/50 rounded-xl border border-outline-variant/30">
+<span class="text-label-sm font-code-sm text-secondary font-semibold uppercase tracking-wider">Ghost &amp; Danger</span>
+<div class="flex flex-col gap-2.5">
+<button class="h-9 px-3.5 rounded-lg bg-transparent text-secondary hover:text-on-surface hover:bg-surface-container text-label-md font-label-md transition-colors flex items-center justify-center">
+                Ghost Subtle
+              </button>
+<button class="h-9 px-3.5 rounded-lg bg-surface-container text-on-surface text-label-md font-label-md flex items-center justify-center">
+                Ghost Hovered
+              </button>
+<button class="h-9 px-3.5 rounded-lg bg-error text-on-error text-label-md font-label-md hover:bg-error/90 transition-colors shadow-sm flex items-center justify-center gap-1.5">
+<span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
+                Delete Issue
+              </button>
+<button class="h-9 px-3.5 rounded-lg bg-error-container text-on-error-container text-label-md font-label-md hover:bg-error-container/80 transition-colors flex items-center justify-center">
+                Danger Subtle
+              </button>
+<button class="h-9 px-3.5 rounded-lg bg-error-container/30 text-on-error-container/40 text-label-md font-label-md cursor-not-allowed flex items-center justify-center" disabled="">
+                Danger Disabled
+              </button>
+</div>
+</div>
+<!-- Icon-Only Variants -->
+<div class="space-y-3 p-4 bg-surface-container-low/50 rounded-xl border border-outline-variant/30">
+<span class="text-label-sm font-code-sm text-secondary font-semibold uppercase tracking-wider">Icon-Only Controls</span>
+<div class="flex flex-col gap-3">
+<div class="flex items-center gap-2">
+<span class="text-label-sm font-code-sm text-secondary w-16">Sm (28px)</span>
+<button class="w-7 h-7 rounded-lg bg-surface-container-lowest border border-outline-variant text-secondary hover:text-on-surface hover:border-outline flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined" data-icon="add" style="font-size: 16px;">add</span>
+</button>
+<button class="w-7 h-7 rounded-lg bg-surface-container-lowest border border-outline-variant text-secondary hover:text-on-surface flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined" data-icon="edit" style="font-size: 16px;">edit</span>
+</button>
+<button class="w-7 h-7 rounded-lg bg-primary-container text-on-primary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined" data-icon="bolt" style="font-size: 16px;">bolt</span>
+</button>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-label-sm font-code-sm text-secondary w-16">Md (36px)</span>
+<button class="w-9 h-9 rounded-lg bg-surface-container-lowest border border-outline-variant text-secondary hover:text-on-surface hover:bg-surface-container flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined" data-icon="share">share</span>
+</button>
+<button class="w-9 h-9 rounded-lg bg-surface-container-lowest border border-outline-variant text-secondary hover:text-on-surface hover:bg-surface-container flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined" data-icon="more_horiz">more_horiz</span>
+</button>
+<button class="w-9 h-9 rounded-lg bg-primary-container text-on-primary flex items-center justify-center shadow-sm hover:bg-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="send">send</span>
+</button>
+</div>
+<div class="pt-2 border-t border-outline-variant/30 flex items-center justify-between text-body-sm text-secondary">
+<span>Focus ring indicator:</span>
+<button class="w-8 h-8 rounded-lg bg-surface-container-lowest border border-primary-container ring-2 ring-primary-container/20 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="check" style="font-size: 16px;">check</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 2: Form Inputs & Selectors -->
+<section class="bg-surface-container-lowest border border-outline-variant/50 rounded-xl p-6 shadow-sm space-y-6">
+<div class="border-b border-outline-variant/30 pb-3 flex items-center justify-between">
+<div>
+<h2 class="text-headline-md font-headline-md text-on-surface">2. Form Inputs &amp; Selectors</h2>
+<p class="text-body-sm font-body-sm text-secondary">Inputs, command palettes, toggle triggers, and custom checkboxes</p>
+</div>
+<span class="text-label-sm font-code-sm text-secondary bg-surface-container px-2 py-0.5 rounded">atomic/inputs</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Text Input States -->
+<div class="space-y-4">
+<div>
+<label class="block text-label-md font-label-md text-on-surface mb-1">Default Text Input</label>
+<input class="w-full h-9 px-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md text-on-surface placeholder-secondary/60 focus:border-primary-container focus:ring-1 focus:ring-primary-container" type="text" value="Refactor OAuth Token Handshake"/>
+<span class="text-label-sm font-label-sm text-secondary mt-1 block">Help text: Standard single-line input</span>
+</div>
+<div>
+<label class="block text-label-md font-label-md text-on-surface mb-1">Focused State (Active Ring)</label>
+<input class="w-full h-9 px-3 bg-surface-container-lowest border border-primary-container rounded-lg text-body-md text-on-surface ring-2 ring-primary-container/20" type="text" value="Feature/websocket-gateway"/>
+<span class="text-label-sm font-label-sm text-primary mt-1 block">Focused with indigo primary stroke</span>
+</div>
+<div>
+<label class="block text-label-md font-label-md text-error mb-1">Error Validation State</label>
+<input class="w-full h-9 px-3 bg-error-container/20 border border-error rounded-lg text-body-md text-error ring-1 ring-error/30" type="text" value="invalid_token_format#%@"/>
+<div class="flex items-center gap-1 text-label-sm font-label-sm text-error mt-1">
+<span class="material-symbols-outlined text-sm" data-icon="error">error</span>
+<span>Branch identifier cannot contain special characters</span>
+</div>
+</div>
+</div>
+<!-- Search & Select -->
+<div class="space-y-4">
+<div>
+<label class="block text-label-md font-label-md text-on-surface mb-1">Search with Shortcut Badge</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary" data-icon="search">search</span>
+<input class="w-full h-9 pl-9 pr-12 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md text-on-surface focus:border-primary-container focus:ring-1 focus:ring-primary-container" placeholder="Jump to issue, project, or teammate..." type="text"/>
+<span class="absolute right-2 top-1/2 -translate-y-1/2 text-label-sm font-code-sm bg-surface-container text-secondary px-1.5 py-0.5 rounded border border-outline-variant/40">⌘K</span>
+</div>
+<span class="text-label-sm font-label-sm text-secondary mt-1 block">Global command palette trigger</span>
+</div>
+<div>
+<label class="block text-label-md font-label-md text-on-surface mb-1">Dropdown Select Picker</label>
+<div class="relative">
+<select class="w-full h-9 pl-3 pr-8 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md text-on-surface appearance-none focus:border-primary-container focus:ring-1 focus:ring-primary-container cursor-pointer">
+<option>Sprint 42 - Mobile Core (Active)</option>
+<option>Sprint 43 - Realtime Collaboration</option>
+<option>Backlog Grooming Bucket</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+<div>
+<label class="block text-label-md font-label-md text-on-surface mb-1">Priority Dropdown Menu</label>
+<div class="flex items-center justify-between p-2 rounded-lg border border-outline-variant bg-surface-container-lowest cursor-pointer hover:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-error"></span>
+<span class="text-body-md font-label-md text-on-surface">Urgent Priority</span>
+</div>
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="unfold_more">unfold_more</span>
+</div>
+</div>
+</div>
+<!-- Toggles & Checkboxes -->
+<div class="space-y-4">
+<div>
+<label class="block text-label-md font-label-md text-on-surface mb-2">Checkboxes &amp; Controls</label>
+<div class="space-y-2.5">
+<label class="flex items-center gap-2.5 cursor-pointer">
+<input checked="" class="w-4 h-4 rounded border-outline-variant text-primary-container focus:ring-primary-container/20" type="checkbox"/>
+<span class="text-body-md text-on-surface">Auto-assign tickets based on workload</span>
+</label>
+<label class="flex items-center gap-2.5 cursor-pointer">
+<input class="w-4 h-4 rounded border-outline-variant text-primary-container focus:ring-primary-container/20" type="checkbox"/>
+<span class="text-body-md text-secondary">Notify via Slack webhook channel</span>
+</label>
+<label class="flex items-center gap-2.5 cursor-not-allowed opacity-60">
+<input checked="" class="w-4 h-4 rounded border-outline-variant text-secondary" disabled="" type="checkbox"/>
+<span class="text-body-md text-secondary">Enforce 2FA security compliance (Locked)</span>
+</label>
+</div>
+</div>
+<div class="pt-2 border-t border-outline-variant/30">
+<label class="block text-label-md font-label-md text-on-surface mb-2">Toggle Switches</label>
+<div class="space-y-3">
+<div class="flex items-center justify-between">
+<span class="text-body-sm text-on-surface">Automated Burndown Sync</span>
+<button class="w-10 h-5 bg-primary-container rounded-full relative p-0.5 transition-colors focus:outline-none" type="button">
+<div class="w-4 h-4 rounded-full bg-white transition-transform translate-x-5 shadow-sm"></div>
+</button>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-body-sm text-secondary">Dark Mode Auto-detect</span>
+<button class="w-10 h-5 bg-outline-variant/50 rounded-full relative p-0.5 transition-colors focus:outline-none" type="button">
+<div class="w-4 h-4 rounded-full bg-white transition-transform translate-x-0 shadow-sm"></div>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 3: Badges, Priority Indicators & Stat Chips -->
+<section class="bg-surface-container-lowest border border-outline-variant/50 rounded-xl p-6 shadow-sm space-y-6">
+<div class="border-b border-outline-variant/30 pb-3 flex items-center justify-between">
+<div>
+<h2 class="text-headline-md font-headline-md text-on-surface">3. Badges, Priority Indicators &amp; Stat Chips</h2>
+<p class="text-body-sm font-body-sm text-secondary">Semantic visual pills, priority tiering, issue classification tags</p>
+</div>
+<span class="text-label-sm font-code-sm text-secondary bg-surface-container px-2 py-0.5 rounded">tokens/badges</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+<!-- Priority Indicators -->
+<div class="space-y-3 p-4 bg-surface-container-low/50 rounded-xl border border-outline-variant/30">
+<span class="text-label-sm font-code-sm text-secondary font-semibold uppercase tracking-wider">Priority Indicators</span>
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between p-2 bg-error-container/30 border border-error/20 rounded-lg">
+<div class="flex items-center gap-1.5 text-error">
+<span class="material-symbols-outlined text-sm font-bold" data-icon="priority_high">priority_high</span>
+<span class="text-label-md font-semibold">Urgent</span>
+</div>
+<span class="text-label-sm font-code-sm text-error bg-error-container/60 px-1.5 py-0.5 rounded">P0</span>
+</div>
+<div class="flex items-center justify-between p-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg">
+<div class="flex items-center gap-1.5 text-error">
+<span class="material-symbols-outlined text-sm" data-icon="signal_cellular_alt">signal_cellular_alt</span>
+<span class="text-label-md font-medium">High</span>
+</div>
+<span class="text-label-sm font-code-sm text-secondary bg-surface-container px-1.5 py-0.5 rounded">P1</span>
+</div>
+<div class="flex items-center justify-between p-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg">
+<div class="flex items-center gap-1.5 text-tertiary">
+<span class="material-symbols-outlined text-sm" data-icon="signal_cellular_alt_2_bar">signal_cellular_alt_2_bar</span>
+<span class="text-label-md font-medium">Medium</span>
+</div>
+<span class="text-label-sm font-code-sm text-secondary bg-surface-container px-1.5 py-0.5 rounded">P2</span>
+</div>
+<div class="flex items-center justify-between p-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg">
+<div class="flex items-center gap-1.5 text-secondary">
+<span class="material-symbols-outlined text-sm" data-icon="south">south</span>
+<span class="text-label-md font-medium">Low</span>
+</div>
+<span class="text-label-sm font-code-sm text-secondary bg-surface-container px-1.5 py-0.5 rounded">P3</span>
+</div>
+</div>
+</div>
+<!-- Status Badges -->
+<div class="space-y-3 p-4 bg-surface-container-low/50 rounded-xl border border-outline-variant/30">
+<span class="text-label-sm font-code-sm text-secondary font-semibold uppercase tracking-wider">Status Badges</span>
+<div class="flex flex-col gap-2">
+<div class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border border-outline-variant/60 text-secondary">
+<span class="material-symbols-outlined text-sm" data-icon="circle">circle</span>
+<span class="text-label-md font-label-md">To do</span>
+</div>
+<div class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-primary-fixed/40 border border-primary-container/30 text-primary">
+<span class="material-symbols-outlined text-sm fill" data-icon="play_circle" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+<span class="text-label-md font-label-md font-medium">In progress</span>
+</div>
+<div class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-tertiary-fixed/40 border border-tertiary/30 text-tertiary">
+<span class="material-symbols-outlined text-sm" data-icon="visibility">visibility</span>
+<span class="text-label-md font-label-md font-medium">In review</span>
+</div>
+<div class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-surface-container-high border border-outline-variant/60 text-on-surface">
+<span class="material-symbols-outlined text-sm text-primary fill" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="text-label-md font-label-md font-medium">Done</span>
+</div>
+<div class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-error-container/20 border border-error/20 text-error">
+<span class="material-symbols-outlined text-sm" data-icon="cancel">cancel</span>
+<span class="text-label-md font-label-md">Canceled</span>
+</div>
+</div>
+</div>
+<!-- Tag Labels -->
+<div class="space-y-3 p-4 bg-surface-container-low/50 rounded-xl border border-outline-variant/30">
+<span class="text-label-sm font-code-sm text-secondary font-semibold uppercase tracking-wider">Tag Labels</span>
+<div class="flex flex-wrap gap-2 pt-1">
+<span class="px-2 py-1 rounded bg-error-container/40 text-on-error-container border border-error/20 text-label-sm font-code-sm flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+                Bug
+              </span>
+<span class="px-2 py-1 rounded bg-primary-fixed text-primary-container border border-primary-container/20 text-label-sm font-code-sm flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+                Feature
+              </span>
+<span class="px-2 py-1 rounded bg-tertiary-fixed text-tertiary border border-tertiary/20 text-label-sm font-code-sm flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                Security
+              </span>
+<span class="px-2 py-1 rounded bg-secondary-fixed text-on-secondary-fixed-variant border border-secondary/20 text-label-sm font-code-sm flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                Performance
+              </span>
+<span class="px-2 py-1 rounded bg-surface-container-high text-on-surface border border-outline-variant text-label-sm font-code-sm flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+                Refactor
+              </span>
+</div>
+<div class="text-body-sm text-secondary pt-2">
+              Tags adhere to 11px font size, 2px 6px padding, 4px corner radius.
+            </div>
+</div>
+<!-- Micro Stat Chips -->
+<div class="space-y-3 p-4 bg-surface-container-low/50 rounded-xl border border-outline-variant/30">
+<span class="text-label-sm font-code-sm text-secondary font-semibold uppercase tracking-wider">Micro Stat Chips</span>
+<div class="flex flex-col gap-2.5">
+<div class="flex items-center justify-between p-2 rounded-lg bg-surface-container-lowest border border-outline-variant/40">
+<span class="text-label-sm font-label-sm text-secondary">Open Issues</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-code-sm text-label-sm font-semibold">Open: 24</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded-lg bg-surface-container-lowest border border-outline-variant/40">
+<span class="text-label-sm font-label-sm text-secondary">Completed Sprint</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface font-code-sm text-label-sm font-semibold">Completed: 88</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded-lg bg-surface-container-lowest border border-outline-variant/40">
+<span class="text-label-sm font-label-sm text-secondary">Urgent Blockers</span>
+<span class="px-2 py-0.5 rounded-full bg-error-container text-error font-code-sm text-label-sm font-semibold">High: 5</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 4: Avatars & Presence -->
+<section class="bg-surface-container-lowest border border-outline-variant/50 rounded-xl p-6 shadow-sm space-y-6">
+<div class="border-b border-outline-variant/30 pb-3 flex items-center justify-between">
+<div>
+<h2 class="text-headline-md font-headline-md text-on-surface">4. Avatars &amp; Presence States</h2>
+<p class="text-body-sm font-body-sm text-secondary">Size scale (20px - 48px), stacked member rosters, real-time presence indicators</p>
+</div>
+<span class="text-label-sm font-code-sm text-secondary bg-surface-container px-2 py-0.5 rounded">atomic/avatars</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Single Sizes -->
+<div class="p-4 bg-surface-container-low/50 rounded-xl border border-outline-variant/30 space-y-3">
+<span class="text-label-sm font-code-sm text-secondary font-semibold uppercase tracking-wider">Avatar Scale Hierarchy</span>
+<div class="flex items-end gap-4 py-2">
+<div class="flex flex-col items-center gap-1">
+<div class="w-5 h-5 rounded-full bg-primary-container text-on-primary text-[10px] font-semibold flex items-center justify-center">AR</div>
+<span class="text-label-sm font-code-sm text-secondary">xs: 20px</span>
+</div>
+<div class="flex flex-col items-center gap-1">
+<div class="w-7 h-7 rounded-full bg-secondary text-on-secondary text-label-sm font-semibold flex items-center justify-center">SK</div>
+<span class="text-label-sm font-code-sm text-secondary">sm: 28px</span>
+</div>
+<div class="flex flex-col items-center gap-1">
+<div class="w-9 h-9 rounded-full bg-tertiary-container text-on-tertiary-container text-label-md font-semibold flex items-center justify-center">ML</div>
+<span class="text-label-sm font-code-sm text-secondary">md: 36px</span>
+</div>
+<div class="flex flex-col items-center gap-1">
+<div class="w-12 h-12 rounded-full bg-surface-tint text-on-primary text-headline-sm font-semibold flex items-center justify-center shadow-sm">DW</div>
+<span class="text-label-sm font-code-sm text-secondary">lg: 48px</span>
+</div>
+</div>
+</div>
+<!-- Member Stack -->
+<div class="p-4 bg-surface-container-low/50 rounded-xl border border-outline-variant/30 space-y-3">
+<span class="text-label-sm font-code-sm text-secondary font-semibold uppercase tracking-wider">Member Avatar Stacks</span>
+<div class="py-3">
+<div class="flex items-center -space-x-2">
+<div class="w-8 h-8 rounded-full bg-primary-container text-on-primary ring-2 ring-surface-container-lowest font-label-sm font-semibold flex items-center justify-center" title="Alex Rivers">AR</div>
+<div class="w-8 h-8 rounded-full bg-secondary text-on-secondary ring-2 ring-surface-container-lowest font-label-sm font-semibold flex items-center justify-center" title="Sarah Kim">SK</div>
+<div class="w-8 h-8 rounded-full bg-tertiary text-on-tertiary ring-2 ring-surface-container-lowest font-label-sm font-semibold flex items-center justify-center" title="Maya Lin">ML</div>
+<div class="w-8 h-8 rounded-full bg-surface-container-high text-on-surface ring-2 ring-surface-container-lowest font-label-sm font-semibold flex items-center justify-center" title="Devin Vance">DV</div>
+<div class="w-8 h-8 rounded-full bg-surface-container text-secondary ring-2 ring-surface-container-lowest font-label-sm font-medium flex items-center justify-center">+3</div>
+</div>
+<p class="text-body-sm text-secondary mt-3">Used in project overview headers and multi-assignee Kanban cards.</p>
+</div>
+</div>
+<!-- Presence Indicators -->
+<div class="p-4 bg-surface-container-low/50 rounded-xl border border-outline-variant/30 space-y-3">
+<span class="text-label-sm font-code-sm text-secondary font-semibold uppercase tracking-wider">Presence Status Indicators</span>
+<div class="space-y-2.5 pt-1">
+<div class="flex items-center gap-3">
+<div class="relative">
+<div class="w-7 h-7 rounded-full bg-primary-container text-on-primary text-label-sm flex items-center justify-center font-semibold">AR</div>
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-500 absolute -bottom-0.5 -right-0.5 ring-2 ring-surface-container-lowest"></span>
+</div>
+<div class="flex flex-col">
+<span class="text-label-md font-label-md text-on-surface">Online / Active</span>
+<span class="text-label-sm text-secondary font-code-sm">status: online</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="relative">
+<div class="w-7 h-7 rounded-full bg-secondary text-on-secondary text-label-sm flex items-center justify-center font-semibold">SK</div>
+<span class="w-2.5 h-2.5 rounded-full bg-amber-500 absolute -bottom-0.5 -right-0.5 ring-2 ring-surface-container-lowest"></span>
+</div>
+<div class="flex flex-col">
+<span class="text-label-md font-label-md text-on-surface">Busy / In Meeting</span>
+<span class="text-label-sm text-secondary font-code-sm">status: dnd</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="relative">
+<div class="w-7 h-7 rounded-full bg-outline-variant text-on-surface-variant text-label-sm flex items-center justify-center font-semibold">ML</div>
+<span class="w-2.5 h-2.5 rounded-full bg-slate-400 absolute -bottom-0.5 -right-0.5 ring-2 ring-surface-container-lowest"></span>
+</div>
+<div class="flex flex-col">
+<span class="text-label-md font-label-md text-on-surface">Offline</span>
+<span class="text-label-sm text-secondary font-code-sm">status: offline</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 5: Issue Card Interactive States (Crucial Showcase!) -->
+<section class="bg-surface-container-lowest border border-outline-variant/50 rounded-xl p-6 shadow-sm space-y-6">
+<div class="border-b border-outline-variant/30 pb-3 flex items-center justify-between">
+<div>
+<h2 class="text-headline-md font-headline-md text-on-surface">5. Issue Card Interactive States Specimen</h2>
+<p class="text-body-sm font-body-sm text-secondary">The core Trackline experience: Default, Hover lift, Active drag state, and Drop targets</p>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-primary-fixed text-primary font-code-sm text-label-sm font-semibold">CRITICAL UI</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+<!-- State A: Default Issue Card -->
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between px-1">
+<span class="text-label-sm font-code-sm font-semibold text-secondary uppercase tracking-wider">State A: Default Resting</span>
+<span class="text-label-sm font-code-sm text-secondary bg-surface-container px-1.5 py-0.5 rounded">shadow-sm</span>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant/60 rounded-xl p-3 shadow-sm flex flex-col gap-2.5 transition-all">
+<!-- Top Row -->
+<div class="flex items-center justify-between">
+<span class="text-label-sm font-code-sm font-medium text-secondary">TRK-101</span>
+<div class="flex items-center gap-1 text-error" title="Urgent">
+<span class="material-symbols-outlined text-sm font-bold" data-icon="priority_high">priority_high</span>
+</div>
+</div>
+<!-- Ticket Title -->
+<h3 class="text-body-md font-label-md text-on-surface leading-snug">Implement WebRTC signaling cluster for live whiteboard</h3>
+<!-- Label Chips -->
+<div class="flex flex-wrap gap-1.5">
+<span class="px-1.5 py-0.5 rounded bg-primary-fixed/60 text-primary text-[11px] font-code-sm font-medium">Feature</span>
+<span class="px-1.5 py-0.5 rounded bg-secondary-fixed/50 text-secondary text-[11px] font-code-sm">v2.4-Core</span>
+</div>
+<!-- Bottom Row -->
+<div class="pt-2 border-t border-outline-variant/20 flex items-center justify-between text-secondary">
+<div class="flex items-center gap-2">
+<div class="flex items-center gap-0.5 text-label-sm font-code-sm">
+<span class="material-symbols-outlined text-sm" data-icon="chat_bubble">chat_bubble</span>
+<span>4</span>
+</div>
+<div class="flex items-center gap-0.5 text-label-sm font-code-sm">
+<span class="material-symbols-outlined text-sm" data-icon="attach_file">attach_file</span>
+<span>2</span>
+</div>
+</div>
+<div class="w-5 h-5 rounded-full bg-primary-container text-on-primary text-[10px] font-semibold flex items-center justify-center ring-1 ring-surface-container">
+                  AR
+                </div>
+</div>
+</div>
+<p class="text-label-sm font-body-sm text-secondary px-1">Flat resting state: 1px border #E2E8F0, shadow 0 1px 3px rgba(15,23,42,0.05).</p>
+</div>
+<!-- State B: Hover State Issue Card -->
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between px-1">
+<span class="text-label-sm font-code-sm font-semibold text-primary uppercase tracking-wider">State B: Hover Elevation</span>
+<span class="text-label-sm font-code-sm text-primary bg-primary-fixed px-1.5 py-0.5 rounded">-1px translateY</span>
+</div>
+<div class="bg-surface-container-lowest border border-primary-container/60 rounded-xl p-3 shadow-md -translate-y-1 flex flex-col gap-2.5 transition-all cursor-pointer ring-1 ring-primary-container/20">
+<!-- Top Row with Quick Actions Visible -->
+<div class="flex items-center justify-between">
+<span class="text-label-sm font-code-sm font-semibold text-primary">TRK-102</span>
+<div class="flex items-center gap-1.5">
+<button class="p-0.5 rounded hover:bg-surface-container text-secondary hover:text-on-surface">
+<span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
+</button>
+<button class="p-0.5 rounded hover:bg-surface-container text-secondary hover:text-on-surface">
+<span class="material-symbols-outlined text-sm" data-icon="more_horiz">more_horiz</span>
+</button>
+<div class="flex items-center gap-1 text-tertiary ml-1" title="Medium">
+<span class="material-symbols-outlined text-sm" data-icon="signal_cellular_alt_2_bar">signal_cellular_alt_2_bar</span>
+</div>
+</div>
+</div>
+<!-- Ticket Title -->
+<h3 class="text-body-md font-label-md text-on-surface leading-snug">Fix session timeout crash on background app wake</h3>
+<!-- Label Chips -->
+<div class="flex flex-wrap gap-1.5">
+<span class="px-1.5 py-0.5 rounded bg-error-container/50 text-error text-[11px] font-code-sm font-medium">Bug</span>
+<span class="px-1.5 py-0.5 rounded bg-tertiary-fixed/50 text-tertiary text-[11px] font-code-sm">Mobile</span>
+</div>
+<!-- Bottom Row -->
+<div class="pt-2 border-t border-outline-variant/30 flex items-center justify-between text-secondary">
+<div class="flex items-center gap-2">
+<div class="flex items-center gap-0.5 text-label-sm font-code-sm text-primary font-medium">
+<span class="material-symbols-outlined text-sm" data-icon="chat_bubble">chat_bubble</span>
+<span>12</span>
+</div>
+<span class="text-label-sm font-code-sm bg-surface-container px-1 py-0.2 rounded text-secondary">Tomorrow</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-secondary text-on-secondary text-[10px] font-semibold flex items-center justify-center ring-1 ring-surface-container">
+                  SK
+                </div>
+</div>
+</div>
+<p class="text-label-sm font-body-sm text-secondary px-1">Hover lift: -1px translate, subtle indigo border glow, quick action icons appear.</p>
+</div>
+<!-- State C: Being Dragged State Issue Card -->
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between px-1">
+<span class="text-label-sm font-code-sm font-semibold text-primary uppercase tracking-wider">State C: Active Dragging</span>
+<span class="text-label-sm font-code-sm text-primary bg-primary-fixed px-1.5 py-0.5 rounded">2deg tilt • scale 1.02</span>
+</div>
+<div class="bg-surface-container-lowest border border-primary-container rounded-xl p-3 shadow-2xl rotate-2 scale-[1.02] flex flex-col gap-2.5 transition-all cursor-grabbing z-20 ring-2 ring-primary-container/30">
+<!-- Top Row with Drag Handle Grip -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-xs text-outline" data-icon="drag_indicator">drag_indicator</span>
+<span class="text-label-sm font-code-sm font-semibold text-primary">TRK-103</span>
+</div>
+<div class="flex items-center gap-1 text-error" title="High">
+<span class="material-symbols-outlined text-sm" data-icon="signal_cellular_alt">signal_cellular_alt</span>
+</div>
+</div>
+<!-- Ticket Title -->
+<h3 class="text-body-md font-label-md text-on-surface leading-snug">Database index tuning for activity log stream queries</h3>
+<!-- Label Chips -->
+<div class="flex flex-wrap gap-1.5">
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface text-[11px] font-code-sm font-medium">Performance</span>
+<span class="px-1.5 py-0.5 rounded bg-primary-fixed/40 text-primary text-[11px] font-code-sm">Backend</span>
+</div>
+<!-- Bottom Row -->
+<div class="pt-2 border-t border-outline-variant/30 flex items-center justify-between text-secondary">
+<div class="flex items-center gap-2">
+<div class="flex items-center gap-0.5 text-label-sm font-code-sm">
+<span class="material-symbols-outlined text-sm" data-icon="checklist">checklist</span>
+<span>3/4</span>
+</div>
+</div>
+<div class="w-5 h-5 rounded-full bg-tertiary-container text-on-tertiary-container text-[10px] font-semibold flex items-center justify-center ring-1 ring-surface-container">
+                  ML
+                </div>
+</div>
+</div>
+<p class="text-label-sm font-body-sm text-secondary px-1">Lifting physics: shadow-2xl elevation, 2-degree dynamic tilt, primary focus ring.</p>
+</div>
+<!-- State D: Target Drop Zone indicator -->
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between px-1">
+<span class="text-label-sm font-code-sm font-semibold text-secondary uppercase tracking-wider">State D: Target Drop Zone</span>
+<span class="text-label-sm font-code-sm text-secondary bg-surface-container px-1.5 py-0.5 rounded">border-dashed</span>
+</div>
+<div class="h-[148px] border-2 border-dashed border-primary-container/60 bg-surface-container/40 rounded-xl flex flex-col items-center justify-center gap-2 p-4 text-center">
+<div class="w-7 h-7 rounded-full bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-sm" data-icon="move_to_inbox">move_to_inbox</span>
+</div>
+<span class="text-label-sm font-label-sm text-primary font-medium">Drop card to update status to "In Review"</span>
+<span class="text-[11px] font-code-sm text-secondary">Target slot index #03</span>
+</div>
+<p class="text-label-sm font-body-sm text-secondary px-1">Target drop indicator: dashed primary boundary with tinted surface-container fill.</p>
+</div>
+</div>
+</section>
+<!-- Token & Code Summary Panel -->
+<section class="bg-inverse-surface text-inverse-on-surface rounded-xl p-6 shadow-md">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-outline/30 pb-4 mb-4">
+<div>
+<h3 class="text-headline-sm font-headline-sm text-inverse-on-surface">Trackline Core Token Manifest</h3>
+<p class="text-body-sm text-secondary-fixed-dim">Verbatim Tailwind token references ready for frontend implementation</p>
+</div>
+<span class="text-label-sm font-code-sm bg-on-surface-variant/40 text-inverse-primary px-2.5 py-1 rounded">tailwind.config.json</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 font-code-sm text-code-sm">
+<div class="space-y-1.5">
+<span class="text-label-sm text-tertiary-fixed-dim uppercase tracking-wider block font-semibold">Primary Palette</span>
+<div class="bg-inverse-surface/80 p-3 rounded-lg border border-outline/20 space-y-1 text-secondary-fixed-dim">
+<div><span class="text-inverse-primary font-medium">primary:</span> #3525cd</div>
+<div><span class="text-inverse-primary font-medium">primary-container:</span> #4f46e5</div>
+<div><span class="text-inverse-primary font-medium">surface:</span> #f8f9ff</div>
+<div><span class="text-inverse-primary font-medium">error:</span> #ba1a1a</div>
+</div>
+</div>
+<div class="space-y-1.5">
+<span class="text-label-sm text-tertiary-fixed-dim uppercase tracking-wider block font-semibold">Elevation &amp; Shadows</span>
+<div class="bg-inverse-surface/80 p-3 rounded-lg border border-outline/20 space-y-1 text-secondary-fixed-dim">
+<div><span class="text-inverse-primary font-medium">resting:</span> 0 1px 3px 0 rgba(15,23,42,0.05)</div>
+<div><span class="text-inverse-primary font-medium">hover:</span> 0 4px 6px -1px rgba(15,23,42,0.07)</div>
+<div><span class="text-inverse-primary font-medium">dragging:</span> 0 12px 24px -4px rgba(15,23,42,0.12)</div>
+<div><span class="text-inverse-primary font-medium">ring:</span> 0 0 0 2px rgba(79,70,229,0.3)</div>
+</div>
+</div>
+<div class="space-y-1.5">
+<span class="text-label-sm text-tertiary-fixed-dim uppercase tracking-wider block font-semibold">Radius &amp; Typography</span>
+<div class="bg-inverse-surface/80 p-3 rounded-lg border border-outline/20 space-y-1 text-secondary-fixed-dim">
+<div><span class="text-inverse-primary font-medium">card-radius:</span> rounded-xl (12px)</div>
+<div><span class="text-inverse-primary font-medium">button-radius:</span> rounded-lg (8px)</div>
+<div><span class="text-inverse-primary font-medium">badge-radius:</span> rounded (4px)</div>
+<div><span class="text-inverse-primary font-medium">font-family:</span> Inter (Display, Head, Body)</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer Meta -->
+<footer class="mt-auto border-t border-outline-variant/40 py-4 px-8 text-center text-label-sm text-secondary bg-surface-container-lowest">
+      Trackline Engineering Design System Specimen • Generated for 1440px Desktop Product Canvas • All components production token compliant.
+    </footer>
+</div>
+</body></html>

@@ -70,7 +70,13 @@ Each service owns its database and accesses another service only through its API
 - Shared liveness/readiness handlers and request-ID middleware.
 - Tested LRU, dependency graph, trie, and token-bucket packages.
 - Issue dependency creation rejects cycles using the graph package.
+- Supported issue sorting, the dependency work-order endpoint, and trie-backed
+  label/username autocomplete are available through the gateway.
+- Service handler and gateway tests cover validation, authorization, routing,
+  membership calls, and idempotent activity-event persistence.
 - Responsive React UI for login, projects, and issue tracking.
+- Issue detail/edit dialog, URL-persisted search/status/priority filters, and
+  loading and empty states.
 
 ## Build roadmap
 
@@ -111,14 +117,17 @@ make migrate-up MIGRATE_DATABASE=issue_db          # migrate one database
 make migrate-status MIGRATE_DATABASE=issue_db
 make migrate-down MIGRATE_DATABASE=issue_db        # roll back one migration
 make docker-app-up                                 # run the entire stack in containers
+python3 scripts/seed.py                            # idempotently seed demo data
 make docker-status && make docker-down             # inspect, then stop containers
+PLAYWRIGHT_BASE_URL=http://localhost:3000 npm --prefix frontend run test:e2e
 make test && make lint
 make build
 ```
 
 For local app execution, start dependencies with `make docker-up` first. The
 run targets use `.env` for credentials and published dependency ports. Run
-`cd frontend && npm ci` once before `make run-frontend` or `make build`. The
+`cd frontend && npm ci && npx playwright install chromium` once before local
+frontend builds and browser tests. The
 local Vite UI listens on `http://localhost:5173`; the local gateway listens on
 `http://localhost:8080`.
 
@@ -165,6 +174,12 @@ For the all-container setup, use `make docker-app-up`; the UI is available at
 available at `localhost:3306` (localhost only), with separate `auth_db`,
 `project_db`, `issue_db`, and `activity_db` databases. To stop the containers:
 
+The seed script uses demo accounts `demo.admin@example.test` and
+`demo.member@example.test` with local-development passwords. Override them with
+`SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_MEMBER_EMAIL`, and
+`SEED_MEMBER_PASSWORD` before running it. Set `TRACKER_URL` when the gateway is
+not at `http://localhost:8080`.
+
 ```sh
 make docker-down
 ```
@@ -176,5 +191,6 @@ To remove the local database data as well, run `docker compose down -v`.
 
 - [`Build_Plan_Bug_Issue_Tracker.md`](Build_Plan_Bug_Issue_Tracker.md) — detailed phased build plan
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — architecture and service/event-flow details
+- [`docs/TESTING.md`](docs/TESTING.md) — Go, Playwright, seed, and verification notes
 - [`docs/CONTEXT.md`](docs/CONTEXT.md) — implementation and environment context
 - [`docs/AGENTS-SKILLS.md`](docs/AGENTS-SKILLS.md) — agent and skill notes

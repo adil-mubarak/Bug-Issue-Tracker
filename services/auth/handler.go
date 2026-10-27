@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
 	sharedauth "github.com/adil/bug-issue-tracker/pkg/auth"
+	"github.com/adil/bug-issue-tracker/pkg/trie"
 )
 
 type Handler struct {
@@ -27,7 +29,11 @@ type credentials struct {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
+	allowedMethod := r.Method == http.MethodPost
+	if r.URL.Path == "/users/autocomplete" {
+		allowedMethod = r.Method == http.MethodGet
+	}
+	if !allowedMethod {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -36,9 +42,52 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.register(w, r)
 	case "/auth/login":
 		h.login(w, r)
+	case "/users/autocomplete":
+		h.autocompleteUsers(w, r)
 	default:
 		http.NotFound(w, r)
 	}
+}
+
+func (h *Handler) autocompleteUsers(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	uid, err := strconv.ParseUint(r.Header.Get("X-User-ID"), 10, 64)
+	if err != nil || uid == 0 {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	prefix := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
+	rows, err := h.db.QueryContext(r.Context(), "SELECT id,email FROM users WHERE email LIKE ? ORDER BY email LIMIT 100", strings.ReplaceAll(prefix, "%", "\\%")+"%")
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not search users")
+		return
+	}
+	defer rows.Close()
+	index := trie.New()
+	userIDs := make(map[string]uint64)
+	for rows.Next() {
+		var email string
+		var userID uint64
+		if err := rows.Scan(&userID, &email); err != nil {
+			writeError(w, http.StatusInternalServerError, "could not search users")
+			return
+		}
+		username := strings.SplitN(email, "@", 2)[0]
+		index.Insert(username)
+		userIDs[strings.ToLower(username)] = userID
+	}
+	if err := rows.Err(); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not search users")
+		return
+	}
+	results := make([]map[string]any, 0, 10)
+	for _, username := range index.Search(prefix, 10) {
+		results = append(results, map[string]any{"id": userIDs[strings.ToLower(username)], "username": username})
+	}
+	writeJSON(w, results)
 }
 
 func (h *Handler) register(w http.ResponseWriter, r *http.Request) {

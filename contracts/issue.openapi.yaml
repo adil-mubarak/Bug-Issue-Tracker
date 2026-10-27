@@ -16,6 +16,8 @@ paths:
         - { name: label, in: query, description: Comma-separated label names; all must match, schema: { type: string } }
         - { name: after_id, in: query, schema: { type: integer } }
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50 } }
+        - { name: sort, in: query, description: Allowlisted fields; after_id cursor pagination is supported only with sort=id, schema: { type: string, enum: [id, title, priority, status, created_at] } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc] } }
       responses:
         '200': { description: Issue list }
     post:
@@ -38,6 +40,10 @@ paths:
       responses:
         '204': { description: Deleted }
   /issues/{issueId}/labels:
+    get:
+      summary: List labels attached to an issue
+      responses:
+        '200': { description: Attached labels }
     post:
       summary: Attach a label to an issue
       responses:
@@ -52,6 +58,21 @@ paths:
       responses:
         '201': { description: Dependency added }
         '409': { description: Dependency creates a cycle }
+  /issues/work-order:
+    get:
+      summary: Return a dependency-respecting work order for a project
+      parameters:
+        - { name: project_id, in: query, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Ordered issue IDs, dependencies precede blocked issues }
+  /issues/labels/autocomplete:
+    get:
+      summary: Suggest project labels by prefix
+      parameters:
+        - { name: project_id, in: query, required: true, schema: { type: integer } }
+        - { name: q, in: query, schema: { type: string } }
+      responses:
+        '200': { description: Matching label names }
 components:
   securitySchemes:
     bearerAuth:

@@ -11,13 +11,19 @@ type Graph struct {
 
 func New() *Graph { return &Graph{edges: make(map[string]map[string]struct{})} }
 
+func (g *Graph) AddNode(node string) {
+	if node != "" {
+		g.edges[node] = g.ensure(g.edges[node])
+	}
+}
+
 // AddDependency means item is blocked by dependency.
 func (g *Graph) AddDependency(item, dependency string) error {
 	if item == "" || dependency == "" {
 		return errors.New("node names must not be empty")
 	}
-	g.edges[item] = g.ensure(g.edges[item])
-	g.edges[dependency] = g.ensure(g.edges[dependency])
+	g.AddNode(item)
+	g.AddNode(dependency)
 	g.edges[item][dependency] = struct{}{}
 	if _, err := g.TopologicalOrder(); err != nil {
 		delete(g.edges[item], dependency)

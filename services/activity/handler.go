@@ -18,11 +18,11 @@ type activityHandler struct {
 func (h *activityHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	uid, err := strconv.ParseUint(r.Header.Get("X-User-ID"), 10, 64)
 	if err != nil || uid == 0 {
-		http.Error(w, "unauthorized", 401)
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", 405)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	projectID, err := strconv.ParseUint(r.URL.Query().Get("project_id"), 10, 64)
@@ -32,13 +32,16 @@ func (h *activityHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, fmt.Sprintf("%s/projects/%d/members/check", strings.TrimRight(h.projectURL, "/"), projectID), nil)
 	if err != nil {
-		http.Error(w, "project service unavailable", 502)
+		http.Error(w, "project service unavailable", http.StatusBadGateway)
 		return
 	}
 	req.Header.Set("X-User-ID", strconv.FormatUint(uid, 10))
+	if requestID := r.Header.Get("X-Request-ID"); requestID != "" {
+		req.Header.Set("X-Request-ID", requestID)
+	}
 	resp, err := h.client.Do(req)
 	if err != nil {
-		http.Error(w, "project service unavailable", 502)
+		http.Error(w, "project service unavailable", http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()
@@ -46,11 +49,11 @@ func (h *activityHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Member bool `json:"member"`
 	}
 	if resp.StatusCode != 200 || json.NewDecoder(resp.Body).Decode(&member) != nil {
-		http.Error(w, "forbidden", 403)
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	if !member.Member {
-		http.Error(w, "forbidden", 403)
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	limit := 50
@@ -87,6 +90,10 @@ func (h *activityHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		x.OccurredAt = string(at)
 		items = append(items, x)
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "database error", http.StatusInternalServerError)
+		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(items)

@@ -104,7 +104,7 @@ func (h *projectHandler) collection(w http.ResponseWriter, r *http.Request, user
 		writeProject(w, 200, items)
 	default:
 		w.Header().Set("Allow", "GET, POST")
-		http.Error(w, "method not allowed", 405)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -112,7 +112,7 @@ func (h *projectHandler) item(w http.ResponseWriter, r *http.Request, id, userID
 	switch r.Method {
 	case http.MethodGet:
 		if !h.isMember(r, id, userID) {
-			http.Error(w, "forbidden", 403)
+			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
 		var p project
@@ -128,7 +128,7 @@ func (h *projectHandler) item(w http.ResponseWriter, r *http.Request, id, userID
 		writeProject(w, 200, p)
 	case http.MethodPut, http.MethodPatch:
 		if !h.isAdmin(r, id, userID) {
-			http.Error(w, "forbidden", 403)
+			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
 		var in projectInput
@@ -144,7 +144,7 @@ func (h *projectHandler) item(w http.ResponseWriter, r *http.Request, id, userID
 		writeProject(w, 200, map[string]bool{"updated": true})
 	case http.MethodDelete:
 		if !h.isAdmin(r, id, userID) {
-			http.Error(w, "forbidden", 403)
+			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
 		_, err := h.db.ExecContext(r.Context(), "DELETE FROM projects WHERE id=?", id)
@@ -155,13 +155,13 @@ func (h *projectHandler) item(w http.ResponseWriter, r *http.Request, id, userID
 		w.WriteHeader(http.StatusNoContent)
 	default:
 		w.Header().Set("Allow", "GET, PUT, PATCH, DELETE")
-		http.Error(w, "method not allowed", 405)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
 func (h *projectHandler) members(w http.ResponseWriter, r *http.Request, projectID, actor uint64) {
 	if !h.isAdmin(r, projectID, actor) {
-		http.Error(w, "forbidden", 403)
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	switch r.Method {
@@ -197,13 +197,13 @@ func (h *projectHandler) members(w http.ResponseWriter, r *http.Request, project
 		w.WriteHeader(204)
 	default:
 		w.Header().Set("Allow", "POST, DELETE")
-		http.Error(w, "method not allowed", 405)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
 func (h *projectHandler) checkMember(w http.ResponseWriter, r *http.Request, projectID, userID uint64) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", 405)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	var exists bool

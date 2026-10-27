@@ -19,6 +19,8 @@ import (
 )
 
 type event struct {
+	EventID   string `json:"event_id"`
+	RequestID string `json:"request_id,omitempty"`
 	IssueID   uint64 `json:"issue_id"`
 	ProjectID uint64 `json:"project_id"`
 	ActorID   uint64 `json:"actor_id"`
@@ -45,13 +47,9 @@ func main() {
 	}
 	defer nc.Close()
 	_, err = nc.Subscribe("tracker.issue.events", func(msg *nats.Msg) {
-		var e event
-		if json.Unmarshal(msg.Data, &e) != nil || e.IssueID == 0 || e.ProjectID == 0 || e.ActorID == 0 {
-			return
-		}
-		payload, _ := json.Marshal(e)
-		_, err := db.Exec("INSERT INTO activity_logs(project_id,issue_id,actor_id,event_type,payload) VALUES(?,?,?,?,?)", e.ProjectID, e.IssueID, e.ActorID, e.EventType, payload)
-		if err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := persistEvent(ctx, db, msg.Data); err != nil {
 			slog.Error("store activity event", "error", err)
 		}
 	})
@@ -82,6 +80,22 @@ func main() {
 	ctx, c := context.WithTimeout(context.Background(), 10*time.Second)
 	defer c()
 	_ = s.Shutdown(ctx)
+}
+
+func persistEvent(ctx context.Context, db *sql.DB, data []byte) error {
+	var e event
+	if err := json.Unmarshal(data, &e); err != nil {
+		return err
+	}
+	if e.EventID == "" || e.IssueID == 0 || e.ProjectID == 0 || e.ActorID == 0 || (e.EventType != "IssueCreated" && e.EventType != "StatusChanged") {
+		return errors.New("invalid issue event")
+	}
+	payload, err := json.Marshal(e)
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, "INSERT INTO activity_logs(event_id,project_id,issue_id,actor_id,event_type,payload) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE event_id=VALUES(event_id)", e.EventID, e.ProjectID, e.IssueID, e.ActorID, e.EventType, payload)
+	return err
 }
 func env(k, d string) string {
 	if v := os.Getenv(k); v != "" {

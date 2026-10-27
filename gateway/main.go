@@ -1,13 +1,18 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/adil/bug-issue-tracker/pkg/auth"
@@ -26,9 +31,37 @@ func main() {
 	}
 	bucket := ratelimit.New(120, 2)
 	transport := &http.Transport{ResponseHeaderTimeout: 5 * time.Second}
+	routes := map[string]string{
+		"auth":     env("AUTH_SERVICE_URL", "http://auth:8081"),
+		"projects": env("PROJECT_SERVICE_URL", "http://project:8082"),
+		"issues":   env("ISSUE_SERVICE_URL", "http://issue:8083"),
+		"activity": env("ACTIVITY_SERVICE_URL", "http://activity:8084"),
+	}
+	server := &http.Server{Addr: env("GATEWAY_ADDR", ":8080"), Handler: newGatewayHandler(secret, routes, bucket, transport), ReadHeaderTimeout: 5 * time.Second}
+	slog.Info("gateway listening", "address", server.Addr)
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- server.ListenAndServe() }()
+	stop, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+	select {
+	case <-stop.Done():
+		ctx, shutdown := context.WithTimeout(context.Background(), 10*time.Second)
+		defer shutdown()
+		if err := server.Shutdown(ctx); err != nil {
+			slog.Error("gateway shutdown", "error", err)
+		}
+	case err := <-serveErr:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("gateway", "error", err)
+			os.Exit(1)
+		}
+	}
+}
+
+func newGatewayHandler(secret []byte, routes map[string]string, bucket *ratelimit.Bucket, transport http.RoundTripper) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/health", health.Handler(nil))
-	mux.Handle("/ready", health.Handler(nil))
+	mux.Handle("/ready", health.Handler(func() error { return checkUpstreams(routes, transport) }))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// Accept both direct gateway paths (/auth/...) and paths forwarded by a
 		// proxy that did not strip the frontend's /api prefix (/api/auth/...).
@@ -37,18 +70,8 @@ func main() {
 			http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
 			return
 		}
-		var target string
-		protected := true
-		switch {
-		case strings.HasPrefix(r.URL.Path, "/auth/"):
-			target, protected = env("AUTH_SERVICE_URL", "http://auth:8081"), false
-		case strings.HasPrefix(r.URL.Path, "/projects"):
-			target = env("PROJECT_SERVICE_URL", "http://project:8082")
-		case strings.HasPrefix(r.URL.Path, "/issues"):
-			target = env("ISSUE_SERVICE_URL", "http://issue:8083")
-		case strings.HasPrefix(r.URL.Path, "/activity"):
-			target = env("ACTIVITY_SERVICE_URL", "http://activity:8084")
-		default:
+		target, protected, ok := gatewayRoute(routes, r.URL.Path)
+		if !ok {
 			http.NotFound(w, r)
 			return
 		}
@@ -77,13 +100,46 @@ func main() {
 			slog.Warn("upstream request failed", "error", err)
 			http.Error(w, "upstream unavailable", http.StatusBadGateway)
 		}
-		proxy.ServeHTTP(w, r)
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+		proxy.ServeHTTP(w, r.WithContext(ctx))
 	})
-	server := &http.Server{Addr: env("GATEWAY_ADDR", ":8080"), Handler: requestid.Middleware(mux), ReadHeaderTimeout: 5 * time.Second}
-	slog.Info("gateway listening", "address", server.Addr)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		slog.Error("gateway", "error", err)
-		os.Exit(1)
+	return requestid.Middleware(mux)
+}
+
+func checkUpstreams(routes map[string]string, transport http.RoundTripper) error {
+	client := &http.Client{Transport: transport, Timeout: 3 * time.Second}
+	for name, target := range routes {
+		u, err := url.Parse(strings.TrimRight(target, "/") + "/ready")
+		if err != nil {
+			return err
+		}
+		resp, err := client.Get(u.String())
+		if err != nil {
+			return fmt.Errorf("%s readiness: %w", name, err)
+		}
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("%s readiness returned %s", name, resp.Status)
+		}
+	}
+	return nil
+}
+
+func gatewayRoute(routes map[string]string, path string) (target string, protected, ok bool) {
+	switch {
+	case strings.HasPrefix(path, "/auth/"):
+		return routes["auth"], false, routes["auth"] != ""
+	case path == "/users/autocomplete":
+		return routes["auth"], true, routes["auth"] != ""
+	case path == "/projects" || strings.HasPrefix(path, "/projects/"):
+		return routes["projects"], true, routes["projects"] != ""
+	case path == "/issues" || strings.HasPrefix(path, "/issues/"):
+		return routes["issues"], true, routes["issues"] != ""
+	case path == "/activity" || strings.HasPrefix(path, "/activity/"):
+		return routes["activity"], true, routes["activity"] != ""
+	default:
+		return "", false, false
 	}
 }
 

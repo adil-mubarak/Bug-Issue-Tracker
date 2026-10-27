@@ -1,11 +1,14 @@
 package main
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/adil/bug-issue-tracker/pkg/graph"
 	"github.com/adil/bug-issue-tracker/pkg/lru"
+	"github.com/adil/bug-issue-tracker/pkg/trie"
 	"github.com/nats-io/nats.go"
 	"log/slog"
 	"net/http"
@@ -47,17 +50,26 @@ type issueInput struct {
 func (h *issueHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	uid, err := strconv.ParseUint(r.Header.Get("X-User-ID"), 10, 64)
 	if err != nil || uid == 0 {
-		http.Error(w, "unauthorized", 401)
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	path := strings.Trim(strings.TrimPrefix(r.URL.Path, "/issues"), "/")
+	if path == "labels/autocomplete" {
+		h.labelAutocomplete(w, r, uid)
+		return
+	}
+	if path == "work-order" {
+		h.workOrder(w, r, uid)
+		return
+	}
 	if path == "" {
-		if r.Method == http.MethodPost {
+		switch r.Method {
+		case http.MethodPost:
 			h.create(w, r, uid)
-		} else if r.Method == http.MethodGet {
+		case http.MethodGet:
 			h.list(w, r, uid)
-		} else {
-			http.Error(w, "method not allowed", 405)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 		return
 	}
@@ -75,7 +87,7 @@ func (h *issueHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !h.isMember(r, projectID, uid) {
-		http.Error(w, "forbidden", 403)
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	if strings.Contains(path, "/") {
@@ -87,6 +99,43 @@ func (h *issueHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.item(w, r, id)
+}
+
+func (h *issueHandler) labelAutocomplete(w http.ResponseWriter, r *http.Request, uid uint64) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	projectID, err := strconv.ParseUint(r.URL.Query().Get("project_id"), 10, 64)
+	if err != nil || projectID == 0 {
+		http.Error(w, "project_id is required", http.StatusBadRequest)
+		return
+	}
+	if !h.isMember(r, projectID, uid) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	prefix := strings.TrimSpace(r.URL.Query().Get("q"))
+	rows, err := h.db.QueryContext(r.Context(), "SELECT name FROM labels WHERE project_id=? AND name LIKE ? ORDER BY name LIMIT 100", projectID, strings.ReplaceAll(strings.ReplaceAll(prefix, "\\", "\\\\"), "%", "\\%")+"%")
+	if err != nil {
+		http.Error(w, "database error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+	index := trie.New()
+	for rows.Next() {
+		var label string
+		if err := rows.Scan(&label); err != nil {
+			http.Error(w, "database error", http.StatusInternalServerError)
+			return
+		}
+		index.Insert(label)
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "database error", http.StatusInternalServerError)
+		return
+	}
+	writeIssue(w, http.StatusOK, index.Search(prefix, 10))
 }
 
 func (h *issueHandler) dependencies(w http.ResponseWriter, r *http.Request, issueID, projectID uint64) {
@@ -160,9 +209,68 @@ func (h *issueHandler) dependencies(w http.ResponseWriter, r *http.Request, issu
 		}
 		writeIssue(w, 201, map[string]any{"issue_id": issueID, "depends_on_issue_id": input.DependsOn})
 	default:
-		http.Error(w, "method not allowed", 405)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
+
+func (h *issueHandler) workOrder(w http.ResponseWriter, r *http.Request, uid uint64) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	projectID, err := strconv.ParseUint(r.URL.Query().Get("project_id"), 10, 64)
+	if err != nil || projectID == 0 {
+		http.Error(w, "project_id is required", http.StatusBadRequest)
+		return
+	}
+	if !h.isMember(r, projectID, uid) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	rows, err := h.db.QueryContext(r.Context(), "SELECT i.id,d.depends_on_issue_id FROM issues i LEFT JOIN issue_dependencies d ON d.issue_id=i.id WHERE i.project_id=? ORDER BY i.id", projectID)
+	if err != nil {
+		http.Error(w, "database error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+	g := graph.New()
+	for rows.Next() {
+		var issueID uint64
+		var dependency sql.NullInt64
+		if err := rows.Scan(&issueID, &dependency); err != nil {
+			http.Error(w, "database error", http.StatusInternalServerError)
+			return
+		}
+		id := strconv.FormatUint(issueID, 10)
+		g.AddNode(id)
+		if dependency.Valid {
+			if err := g.AddDependency(id, strconv.FormatInt(dependency.Int64, 10)); err != nil {
+				http.Error(w, "dependency graph error", http.StatusInternalServerError)
+				return
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "database error", http.StatusInternalServerError)
+		return
+	}
+	order, err := g.TopologicalOrder()
+	if err != nil {
+		http.Error(w, "dependency graph error", http.StatusInternalServerError)
+		return
+	}
+	ids := make([]uint64, 0, len(order))
+	for _, id := range order {
+		n, err := strconv.ParseUint(id, 10, 64)
+		if err != nil {
+			http.Error(w, "dependency graph error", http.StatusInternalServerError)
+			return
+		}
+		ids = append(ids, n)
+	}
+	writeIssue(w, http.StatusOK, map[string]any{"project_id": projectID, "work_order": ids})
+}
+
 func (h *issueHandler) isMember(r *http.Request, projectID, userID uint64) bool {
 	key := fmt.Sprintf("%d:%d", projectID, userID)
 	if h.memberships != nil {
@@ -176,6 +284,9 @@ func (h *issueHandler) isMember(r *http.Request, projectID, userID uint64) bool 
 		return false
 	}
 	req.Header.Set("X-User-ID", strconv.FormatUint(userID, 10))
+	if requestID := r.Header.Get("X-Request-ID"); requestID != "" {
+		req.Header.Set("X-Request-ID", requestID)
+	}
 	resp, err := h.client.Do(req)
 	if err != nil {
 		return false
@@ -200,7 +311,7 @@ func (h *issueHandler) create(w http.ResponseWriter, r *http.Request, uid uint64
 		return
 	}
 	if !h.isMember(r, in.ProjectID, uid) {
-		http.Error(w, "forbidden", 403)
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	if in.Priority == "" {
@@ -219,65 +330,21 @@ func (h *issueHandler) create(w http.ResponseWriter, r *http.Request, uid uint64
 		return
 	}
 	id, _ := result.LastInsertId()
-	h.publish("IssueCreated", uint64(id), in.ProjectID, uid, in.Status)
+	h.publish(r, "IssueCreated", uint64(id), in.ProjectID, uid, in.Status)
 	writeIssue(w, 201, map[string]any{"id": id, "project_id": in.ProjectID, "title": in.Title, "description": in.Description, "priority": in.Priority, "status": in.Status, "assignee_id": in.AssigneeID, "reporter_id": uid})
 }
 func (h *issueHandler) list(w http.ResponseWriter, r *http.Request, uid uint64) {
-	projectID, e := strconv.ParseUint(r.URL.Query().Get("project_id"), 10, 64)
-	if e != nil || projectID == 0 {
-		http.Error(w, "project_id is required", 400)
+	query, err := buildIssueQuery(r.URL.Query())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	projectID, _ := strconv.ParseUint(r.URL.Query().Get("project_id"), 10, 64)
 	if !h.isMember(r, projectID, uid) {
-		http.Error(w, "forbidden", 403)
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	query := "SELECT id,project_id,title,description,priority,status,assignee_id,reporter_id FROM issues WHERE project_id=?"
-	args := []any{projectID}
-	for key, col := range map[string]string{"status": "status", "priority": "priority", "assignee_id": "assignee_id"} {
-		if value := r.URL.Query().Get(key); value != "" {
-			query += " AND " + col + "=?"
-			args = append(args, value)
-		}
-	}
-	if text := strings.TrimSpace(r.URL.Query().Get("q")); text != "" {
-		query += " AND (title LIKE ? OR description LIKE ?)"
-		args = append(args, "%"+text+"%", "%"+text+"%")
-	}
-	if rawLabels := strings.TrimSpace(r.URL.Query().Get("label")); rawLabels != "" {
-		labels := strings.Split(rawLabels, ",")
-		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(labels)), ",")
-		query += " AND id IN (SELECT il.issue_id FROM issue_labels il JOIN labels l ON l.id=il.label_id WHERE l.project_id=? AND l.name IN (" + placeholders + ") GROUP BY il.issue_id HAVING COUNT(DISTINCT l.name)=?)"
-		args = append(args, projectID)
-		for i := range labels {
-			labels[i] = strings.TrimSpace(labels[i])
-			args = append(args, labels[i])
-		}
-		args = append(args, len(labels))
-	}
-	if after := r.URL.Query().Get("after_id"); after != "" {
-		cursor, e := strconv.ParseUint(after, 10, 64)
-		if e != nil {
-			http.Error(w, "invalid cursor", 400)
-			return
-		}
-		query += " AND id<?"
-		args = append(args, cursor)
-	}
-	query += " ORDER BY id DESC LIMIT ?"
-	limit := uint64(50)
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		n, e := strconv.ParseUint(raw, 10, 64)
-		if e != nil || n == 0 {
-			http.Error(w, "invalid limit", 400)
-			return
-		}
-		if n < limit {
-			limit = n
-		}
-	}
-	args = append(args, limit)
-	rows, err := h.db.QueryContext(r.Context(), query, args...)
+	rows, err := h.db.QueryContext(r.Context(), query.SQL, query.Args...)
 	if err != nil {
 		http.Error(w, "database error", 500)
 		return
@@ -335,7 +402,7 @@ func (h *issueHandler) item(w http.ResponseWriter, r *http.Request, id uint64) {
 			return
 		}
 		if previousStatus != in.Status {
-			h.publish("StatusChanged", id, projectID, actorID, in.Status)
+			h.publish(r, "StatusChanged", id, projectID, actorID, in.Status)
 		}
 		writeIssue(w, 200, map[string]bool{"updated": true})
 	case http.MethodDelete:
@@ -346,15 +413,20 @@ func (h *issueHandler) item(w http.ResponseWriter, r *http.Request, id uint64) {
 		}
 		w.WriteHeader(204)
 	default:
-		http.Error(w, "method not allowed", 405)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
-func (h *issueHandler) publish(eventType string, issueID, projectID, actorID uint64, status string) {
+func (h *issueHandler) publish(r *http.Request, eventType string, issueID, projectID, actorID uint64, status string) {
 	if h.events == nil {
 		return
 	}
-	body, _ := json.Marshal(map[string]any{"issue_id": issueID, "project_id": projectID, "actor_id": actorID, "event_type": eventType, "status": status})
+	var eventID [16]byte
+	if _, err := rand.Read(eventID[:]); err != nil {
+		slog.Warn("generate event ID failed", "error", err)
+		return
+	}
+	body, _ := json.Marshal(map[string]any{"event_id": hex.EncodeToString(eventID[:]), "request_id": r.Header.Get("X-Request-ID"), "issue_id": issueID, "project_id": projectID, "actor_id": actorID, "event_type": eventType, "status": status})
 	if err := h.events.Publish("tracker.issue.events", body); err != nil {
 		slog.Warn("publish issue event failed", "error", err)
 	}
@@ -386,7 +458,7 @@ func (h *issueHandler) labels(w http.ResponseWriter, r *http.Request, id uint64)
 		return
 	}
 	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", 405)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	var input struct {
