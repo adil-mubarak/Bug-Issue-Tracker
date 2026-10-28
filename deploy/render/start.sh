@@ -61,6 +61,10 @@ wait_http() {
 
 run_migration() {
   local database="$1" url="$2" attempt log_file
+  # migrate's MySQL URL parser passes the DSN to mysql.ParseDSN, which treats
+  # the last literal slash as the database separator even inside query values.
+  # Encode this CA path slash so it remains a query value until ParseQuery.
+  url="${url//\/tmp\/trackline-mysql-ca.pem/%2Ftmp%2Ftrackline-mysql-ca.pem}"
   log_file="/tmp/migrate-${database}.log"
   for attempt in {1..30}; do
     if migrate -path "/app/migrations/${database}" -database "$url" up >"$log_file" 2>&1; then
