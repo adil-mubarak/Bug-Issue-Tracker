@@ -12,6 +12,10 @@ name="$(basename "$0")"
 case "$name" in
   migrate)
     [[ -e "$TEST_TMP/gateway-started" ]] || { echo 'gateway was not started before migration' >&2; exit 9; }
+    [[ "$*" == *'x-tls-ca=%2Ftmp%2Ftrackline-mysql-ca.pem'* && "$*" == *'tls=trackline'* ]] || {
+      echo "migration CA path encoding or verified TLS setting was missing" >&2
+      exit 10
+    }
     touch "$TEST_TMP/migration-started"
     if [[ "${MIGRATE_FAIL:-}" == 1 ]]; then
       echo 'dial mysql://tracker:TOP_SECRET@tcp(db:3306)/auth_db: connection refused' >&2
@@ -47,13 +51,13 @@ export PATH="$tmp/bin:$PATH" TEST_TMP="$tmp"
 export PORT=10000 JWT_SECRET="01234567890123456789012345678901"
 export CORS_ALLOWED_ORIGINS=https://example.test MYSQL_TLS_CA_PEM=placeholder
 export AUTH_DATABASE_URL='mysql://auth:secret@tcp(db:3306)/auth_db'
-export AUTH_MIGRATE_DATABASE_URL='mysql://tracker:TOP_SECRET@tcp(db:3306)/auth_db'
+export AUTH_MIGRATE_DATABASE_URL='mysql://tracker:TOP_SECRET@tcp(db:3306)/auth_db?multiStatements=true&tls=trackline&x-tls-ca=/tmp/trackline-mysql-ca.pem'
 export PROJECT_DATABASE_URL='mysql://project:secret@tcp(db:3306)/project_db'
-export PROJECT_MIGRATE_DATABASE_URL='mysql://tracker:secret@tcp(db:3306)/project_db'
+export PROJECT_MIGRATE_DATABASE_URL='mysql://tracker:secret@tcp(db:3306)/project_db?multiStatements=true&tls=trackline&x-tls-ca=/tmp/trackline-mysql-ca.pem'
 export ISSUE_DATABASE_URL='mysql://issue:secret@tcp(db:3306)/issue_db'
-export ISSUE_MIGRATE_DATABASE_URL='mysql://tracker:secret@tcp(db:3306)/issue_db'
+export ISSUE_MIGRATE_DATABASE_URL='mysql://tracker:secret@tcp(db:3306)/issue_db?multiStatements=true&tls=trackline&x-tls-ca=/tmp/trackline-mysql-ca.pem'
 export ACTIVITY_DATABASE_URL='mysql://activity:secret@tcp(db:3306)/activity_db'
-export ACTIVITY_MIGRATE_DATABASE_URL='mysql://tracker:secret@tcp(db:3306)/activity_db'
+export ACTIVITY_MIGRATE_DATABASE_URL='mysql://tracker:secret@tcp(db:3306)/activity_db?multiStatements=true&tls=trackline&x-tls-ca=/tmp/trackline-mysql-ca.pem'
 
 # Success case: the migration mock refuses to proceed until the gateway was
 # launched, proving the public listener is started before remote migrations.
