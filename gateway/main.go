@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
@@ -37,7 +39,7 @@ func main() {
 		"issues":   env("ISSUE_SERVICE_URL", "http://issue:8083"),
 		"activity": env("ACTIVITY_SERVICE_URL", "http://activity:8084"),
 	}
-	server := &http.Server{Addr: env("GATEWAY_ADDR", ":8080"), Handler: newGatewayHandler(secret, routes, bucket, transport), ReadHeaderTimeout: 5 * time.Second}
+	server := &http.Server{Addr: env("GATEWAY_ADDR", ":8082"), Handler: newGatewayHandler(secret, routes, bucket, transport), ReadHeaderTimeout: 5 * time.Second}
 	slog.Info("gateway listening", "address", server.Addr)
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- server.ListenAndServe() }()
@@ -81,13 +83,36 @@ func newGatewayHandler(secret []byte, routes map[string]string, bucket *ratelimi
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}
-			userID, role, err := auth.VerifyToken(parts[1], secret)
+			userID, role, mustChangePassword, resetVersion, err := auth.VerifyTokenWithResetState(parts[1], secret)
 			if err != nil {
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}
 			r.Header.Set("X-User-ID", strconv.FormatUint(userID, 10))
 			r.Header.Set("X-User-Role", role)
+			r.Header.Set("X-Must-Change-Password", strconv.FormatBool(mustChangePassword))
+			r.Header.Set("X-Password-Reset-Version", strconv.FormatUint(resetVersion, 10))
+			ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+			defer cancel()
+			resetRequired, currentVersion, err := checkAuthSession(ctx, routes["auth"], transport, userID, role, resetVersion)
+			if err != nil {
+				slog.Warn("auth session validation failed", "error", err)
+				var statusErr *upstreamStatusError
+				if errors.As(err, &statusErr) && statusErr.status == http.StatusUnauthorized {
+					http.Error(w, "unauthorized", http.StatusUnauthorized)
+				} else {
+					http.Error(w, "auth service unavailable", http.StatusBadGateway)
+				}
+				return
+			}
+			if resetVersion != currentVersion || (mustChangePassword && !resetRequired) {
+				http.Error(w, "session no longer valid", http.StatusUnauthorized)
+				return
+			}
+			if resetRequired && r.URL.Path != "/auth/password" {
+				http.Error(w, "password change required", http.StatusForbidden)
+				return
+			}
 		}
 		destination, err := url.Parse(target)
 		if err != nil {
@@ -126,12 +151,61 @@ func checkUpstreams(routes map[string]string, transport http.RoundTripper) error
 	return nil
 }
 
+type upstreamStatusError struct {
+	status int
+}
+
+func (e *upstreamStatusError) Error() string {
+	return fmt.Sprintf("auth session endpoint returned %s", http.StatusText(e.status))
+}
+
+func checkAuthSession(ctx context.Context, authURL string, transport http.RoundTripper, userID uint64, role string, resetVersion uint64) (bool, uint64, error) {
+	endpoint := strings.TrimRight(authURL, "/") + "/auth/session"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return false, 0, fmt.Errorf("create auth session request: %w", err)
+	}
+	req.Header.Set("X-User-ID", strconv.FormatUint(userID, 10))
+	req.Header.Set("X-User-Role", role)
+	req.Header.Set("X-Password-Reset-Version", strconv.FormatUint(resetVersion, 10))
+	client := &http.Client{Transport: transport, Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, 0, fmt.Errorf("request auth session status: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return false, 0, &upstreamStatusError{status: resp.StatusCode}
+	}
+	var result struct {
+		PasswordResetRequired bool   `json:"password_reset_required"`
+		PasswordResetVersion  uint64 `json:"password_reset_version"`
+	}
+	dec := json.NewDecoder(io.LimitReader(resp.Body, 4096))
+	if err := dec.Decode(&result); err != nil {
+		return false, 0, fmt.Errorf("decode auth session status: %w", err)
+	}
+	return result.PasswordResetRequired, result.PasswordResetVersion, nil
+}
+
 func gatewayRoute(routes map[string]string, path string) (target string, protected, ok bool) {
 	switch {
+	case path == "/auth/password":
+		return routes["auth"], true, routes["auth"] != ""
+	case path == "/auth/session":
+		return routes["auth"], true, routes["auth"] != ""
 	case strings.HasPrefix(path, "/auth/"):
 		return routes["auth"], false, routes["auth"] != ""
 	case path == "/users/autocomplete":
 		return routes["auth"], true, routes["auth"] != ""
+	case path == "/users/directory":
+		return routes["auth"], true, routes["auth"] != ""
+	case path == "/users/names":
+		return routes["auth"], true, routes["auth"] != ""
+	case path == "/users" || isUserPasswordResetPath(path) || isUserStatusPath(path):
+		return routes["auth"], true, routes["auth"] != ""
+	case isProjectIssueMovePath(path):
+		return routes["issues"], true, routes["issues"] != ""
 	case path == "/projects" || strings.HasPrefix(path, "/projects/"):
 		return routes["projects"], true, routes["projects"] != ""
 	case path == "/issues" || strings.HasPrefix(path, "/issues/"):
@@ -141,6 +215,34 @@ func gatewayRoute(routes map[string]string, path string) (target string, protect
 	default:
 		return "", false, false
 	}
+}
+
+func isUserStatusPath(path string) bool {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) != 3 || parts[0] != "users" || parts[2] != "status" {
+		return false
+	}
+	id, err := strconv.ParseUint(parts[1], 10, 64)
+	return err == nil && id > 0
+}
+
+func isUserPasswordResetPath(path string) bool {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) != 3 || parts[0] != "users" || parts[2] != "password-reset" {
+		return false
+	}
+	id, err := strconv.ParseUint(parts[1], 10, 64)
+	return err == nil && id > 0
+}
+
+func isProjectIssueMovePath(path string) bool {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) != 5 || parts[0] != "projects" || parts[2] != "issues" || parts[4] != "move" {
+		return false
+	}
+	projectID, projectErr := strconv.ParseUint(parts[1], 10, 64)
+	issueID, issueErr := strconv.ParseUint(parts[3], 10, 64)
+	return projectErr == nil && projectID > 0 && issueErr == nil && issueID > 0
 }
 
 func normalizeAPIPath(path string) string {

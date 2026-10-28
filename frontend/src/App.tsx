@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { Issue, Project, ProjectBoard } from './ProjectBoard'
+import { ActivityEntry, AdminUser, AnalyticsSnapshot, applyIssueMove, Issue, Project, ProjectBoard, ProjectMember, UserDirectoryPage, UserSuggestion } from './ProjectBoard'
 
 const api = async (path: string, options: RequestInit = {}) => {
   const token = localStorage.getItem('token')
@@ -16,13 +16,78 @@ const api = async (path: string, options: RequestInit = {}) => {
   return response.json()
 }
 
+async function mapConcurrent<T, R>(items: T[], concurrency: number, mapper: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let next = 0
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next++
+      results[index] = await mapper(items[index])
+    }
+  }))
+  return results
+}
+
 type AuthMode = 'login' | 'register' | 'forgot'
+
+function userContextFromToken(token: string): { userID: number; role: string; mustChangePassword: boolean } {
+  try {
+    const payload = token.split('.')[1]
+    if (!payload) return { userID: 0, role: 'member', mustChangePassword: false }
+    const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
+    const claims = JSON.parse(decoded) as { sub?: unknown; role?: unknown; must_change_password?: unknown }
+    const userID = Number(claims.sub)
+    const role = claims.role === 'admin' || claims.role === 'member' ? claims.role : 'member'
+    return { userID: Number.isSafeInteger(userID) && userID > 0 ? userID : 0, role, mustChangePassword: claims.must_change_password === true }
+  } catch {
+    return { userID: 0, role: 'member', mustChangePassword: false }
+  }
+}
+
+function initialUserContext() {
+  const storedUserID = Number(localStorage.getItem('user_id'))
+  const fromToken = userContextFromToken(localStorage.getItem('token') || '')
+  const hasStoredUserID = Number.isSafeInteger(storedUserID) && storedUserID > 0
+  return {
+    userID: fromToken.userID || (hasStoredUserID ? storedUserID : 0),
+    role: fromToken.userID ? fromToken.role : localStorage.getItem('role') || fromToken.role,
+    mustChangePassword: fromToken.mustChangePassword,
+  }
+}
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '')
   const [mode, setMode] = useState<AuthMode>('login')
   const [showPassword, setShowPassword] = useState(false)
   const [projects, setProjects] = useState<Project[]>([])
+  const [members, setMembers] = useState<ProjectMember[]>([])
+  const [calendarIssues, setCalendarIssues] = useState<Issue[]>([])
+  const [calendarLoading, setCalendarLoading] = useState(false)
+  const [myIssues, setMyIssues] = useState<Issue[]>([])
+  const [myIssuesLoading, setMyIssuesLoading] = useState(false)
+  const [myIssuesErrors, setMyIssuesErrors] = useState<string[]>([])
+  const [activityItems, setActivityItems] = useState<ActivityEntry[]>([])
+  const [activityLoading, setActivityLoading] = useState(false)
+  const [activityPartialErrors, setActivityPartialErrors] = useState<string[]>([])
+  const [analytics, setAnalytics] = useState<AnalyticsSnapshot | null>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+  const [analyticsError, setAnalyticsError] = useState('')
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
+  const [adminProjects, setAdminProjects] = useState<Project[]>([])
+  const [adminProjectsLoading, setAdminProjectsLoading] = useState(false)
+  const [adminProjectsError, setAdminProjectsError] = useState('')
+  const [adminUsersLoading, setAdminUsersLoading] = useState(false)
+  const [adminUsersError, setAdminUsersError] = useState('')
+  const [adminUsersAfterID, setAdminUsersAfterID] = useState<number | null>(null)
+  const [adminUsersHasMore, setAdminUsersHasMore] = useState(false)
+  const [managedUserID, setManagedUserID] = useState<number | null>(null)
+  const [managedUserProjectIDs, setManagedUserProjectIDs] = useState<number[]>([])
+  const [managedUserProjectsLoading, setManagedUserProjectsLoading] = useState(false)
+  const [managedUserProjectsError, setManagedUserProjectsError] = useState('')
+  const [userContext] = useState(initialUserContext)
+  const [currentUserID, setCurrentUserID] = useState(userContext.userID)
+  const [globalRole, setGlobalRole] = useState(userContext.role)
+  const [mustChangePassword, setMustChangePassword] = useState(userContext.mustChangePassword)
   const [selected, setSelected] = useState<number | null>(null)
   const [issues, setIssues] = useState<Issue[]>([])
   const [error, setError] = useState('')
@@ -34,13 +99,22 @@ export default function App() {
   const [loadingIssues, setLoadingIssues] = useState(false)
   const [newIssueStatus, setNewIssueStatus] = useState('todo')
   const [createIssueOpen, setCreateIssueOpen] = useState(false)
-  const [screen, setScreen] = useState<'board' | 'projects' | 'components'>('board')
+  const [movePending, setMovePending] = useState(false)
+  const [moveToast, setMoveToast] = useState('')
+  const [screen, setScreen] = useState<'board' | 'projects' | 'calendar' | 'admin' | 'my-issues' | 'activity' | 'analytics' | 'users'>('board')
   const projectRequestId = useRef(0)
   const issueRequestId = useRef(0)
+  const myIssuesRequestId = useRef(0)
+  const activityRequestId = useRef(0)
+  const analyticsRequestId = useRef(0)
+  const managedUserProjectsRequestId = useRef(0)
+  const adminProjectsRequestID = useRef(0)
+  const movePendingRef = useRef(false)
   const selectedProjectRef = useRef<number | null>(selected)
   selectedProjectRef.current = selected
 
   const selectedProject = projects.find(project => project.id === selected)
+    || (globalRole === 'admin' ? adminProjects.find(project => project.id === selected) : undefined)
 
   async function loadProjects() {
     const requestId = ++projectRequestId.current
@@ -56,6 +130,31 @@ export default function App() {
     if (!selected && data.length) {
       selectedProjectRef.current = data[0].id
       setSelected(data[0].id)
+    }
+  }
+
+  async function loadAdminProjects() {
+    const requestID = ++adminProjectsRequestID.current
+    setAdminProjectsLoading(true)
+    setAdminProjectsError('')
+    try {
+      const result = await api('/projects?scope=all') as Project[]
+      const ownerIDs = [...new Set(result.map(project => project.owner_id).filter((id): id is number => typeof id === 'number' && Number.isSafeInteger(id) && id > 0))]
+      const ownerNames = new Map<number, string>()
+      for (let start = 0; start < ownerIDs.length; start += 100) {
+        try {
+          const names = await api('/users/names', { method: 'POST', body: JSON.stringify({ user_ids: ownerIDs.slice(start, start + 100) }) }) as Array<{ id: number; username: string }>
+          for (const owner of names) ownerNames.set(owner.id, owner.username)
+        } catch {
+          // Project visibility should not depend on optional owner-name enrichment.
+        }
+      }
+      const projectsWithOwners = result.map(project => ({ ...project, owner_username: project.owner_id ? ownerNames.get(project.owner_id) : undefined }))
+      if (requestID === adminProjectsRequestID.current) setAdminProjects(projectsWithOwners)
+    } catch (cause) {
+      if (requestID === adminProjectsRequestID.current) setAdminProjectsError(cause instanceof Error ? cause.message : 'Could not load all projects.')
+    } finally {
+      if (requestID === adminProjectsRequestID.current) setAdminProjectsLoading(false)
     }
   }
 
@@ -81,9 +180,34 @@ export default function App() {
     }
   }
 
+  async function fetchProjectMembers(projectId: number) {
+	const members = await api(`/projects/${projectId}/members`) as ProjectMember[]
+	const ids = members.map(member => member.user_id).filter(id => id > 0)
+	if (ids.length === 0) return members
+	const byID = new Map<number, { username: string; active: boolean }>()
+	for (let start = 0; start < ids.length; start += 100) {
+		try {
+			const names = await api('/users/names', { method: 'POST', body: JSON.stringify({ user_ids: ids.slice(start, start + 100) }) }) as Array<{ id: number; username: string; active: boolean }>
+			for (const user of names) byID.set(user.id, { username: user.username, active: user.active })
+		} catch {
+			// Keep project membership usable if an account-name batch is unavailable.
+		}
+	}
+	return members.map(member => {
+		const user = byID.get(member.user_id)
+		return { ...member, username: user?.username, active: user?.active }
+	})
+  }
+
+  async function loadProjectMembers(projectId: number) {
+    const result = await fetchProjectMembers(projectId)
+    if (selectedProjectRef.current === projectId) setMembers(result)
+    return result
+  }
+
   useEffect(() => {
-    if (token) loadProjects().catch(cause => setError(cause.message))
-  }, [token])
+    if (token && !mustChangePassword) loadProjects().catch(cause => setError(cause.message))
+  }, [token, mustChangePassword])
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -95,8 +219,16 @@ export default function App() {
   }, [query, statusFilter, priorityFilter])
 
   useEffect(() => {
-    if (token && selected) void loadIssues(selected)
-  }, [token, selected, query, statusFilter, priorityFilter])
+    if (token && !mustChangePassword && selected) void loadIssues(selected)
+  }, [token, mustChangePassword, selected, query, statusFilter, priorityFilter])
+
+  useEffect(() => {
+    if (token && !mustChangePassword && selected) {
+      loadProjectMembers(selected).catch(cause => setError(cause instanceof Error ? cause.message : String(cause)))
+    } else {
+      setMembers([])
+    }
+  }, [token, mustChangePassword, selected])
 
   async function authenticate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -114,6 +246,11 @@ export default function App() {
       }
       localStorage.setItem('email', String(form.get('email') || ''))
       localStorage.setItem('token', data.access_token)
+      localStorage.setItem('user_id', String(data.user_id))
+      localStorage.setItem('role', String(data.role || 'member'))
+      setCurrentUserID(Number(data.user_id) || 0)
+      setGlobalRole(String(data.role || 'member'))
+      setMustChangePassword(Boolean(data.must_change_password))
       setToken(data.access_token)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not sign in')
@@ -122,19 +259,41 @@ export default function App() {
     }
   }
 
-  async function createProject(event: FormEvent<HTMLFormElement>) {
+  async function createProject(event: FormEvent<HTMLFormElement>, memberIDs: number[]) {
     event.preventDefault()
     const target = event.currentTarget
     const form = new FormData(target)
+    setError('')
     try {
       await api('/projects', {
         method: 'POST',
-        body: JSON.stringify({ name: form.get('name'), description: form.get('description') || '' }),
+        body: JSON.stringify({ name: form.get('name'), description: form.get('description') || '', member_ids: memberIDs }),
       })
       target.reset()
       await loadProjects()
+      if (globalRole === 'admin') await loadAdminProjects()
+      return true
     } catch (cause) {
       setError(String(cause))
+      return false
+    }
+  }
+
+  async function deleteProject(project: Project) {
+    setError('')
+    try {
+      await api(`/projects/${project.id}`, { method: 'DELETE' })
+      setProjects(current => current.filter(item => item.id !== project.id))
+      setAdminProjects(current => current.filter(item => item.id !== project.id))
+      setManagedUserProjectIDs(current => current.filter(id => id !== project.id))
+      if (selectedProjectRef.current === project.id) {
+        selectedProjectRef.current = null
+        setSelected(null)
+        setIssues([])
+        setMembers([])
+      }
+    } catch (cause) {
+      throw cause instanceof Error ? cause : new Error('Could not delete project.')
     }
   }
 
@@ -155,6 +314,8 @@ export default function App() {
           priority: form.get('priority'),
           status: form.get('status'),
           assignee_id: String(form.get('assignee_id') || '').trim() ? Number(form.get('assignee_id')) : null,
+          start_date: form.get('start_date') || null,
+          due_date: form.get('due_date') || null,
         }),
       }) as Issue
       const labelResults = await Promise.allSettled(labelNames.map(name => api(`/issues/${created.id}/labels`, {
@@ -182,6 +343,8 @@ export default function App() {
           priority: issue.priority,
           status,
           assignee_id: issue.assignee_id,
+          start_date: issue.start_date || null,
+          due_date: issue.due_date || null,
         }),
       })
       const currentProjectId = selectedProjectRef.current
@@ -191,14 +354,300 @@ export default function App() {
     }
   }
 
+  async function deleteIssue(issue: Issue) {
+    setError('')
+    try {
+      await api(`/issues/${issue.id}`, { method: 'DELETE' })
+      setIssues(current => current.filter(item => item.id !== issue.id))
+      setCalendarIssues(current => current.filter(item => item.id !== issue.id))
+      setMyIssues(current => current.filter(item => item.id !== issue.id))
+      setActivityItems(current => current.filter(item => item.issue_id !== issue.id))
+      setSelectedIssue(current => current?.id === issue.id ? null : current)
+    } catch (cause) {
+      throw cause instanceof Error ? cause : new Error('Could not delete issue.')
+    }
+  }
+
+  async function moveIssue(issueId: number, status: string, position: number) {
+    const projectId = selectedProjectRef.current
+    if (!projectId || movePendingRef.current) return
+    const previousIssues = issues
+    setMoveToast('')
+    setIssues(current => applyIssueMove(current, issueId, status, position))
+    movePendingRef.current = true
+    setMovePending(true)
+    try {
+      const updated = await api(`/projects/${projectId}/issues/${issueId}/move`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status, position }),
+      }) as Issue
+      if (selectedProjectRef.current === projectId) {
+        setIssues(current => current.map(issue => issue.id === issueId ? { ...issue, ...updated } : issue))
+      }
+    } catch (cause) {
+      if (selectedProjectRef.current === projectId) {
+        setIssues(previousIssues)
+        setMoveToast(cause instanceof Error ? `Couldn’t move issue: ${cause.message}` : 'Couldn’t move issue. Please try again.')
+      }
+    } finally {
+      movePendingRef.current = false
+      setMovePending(false)
+    }
+  }
+
+  async function loadCalendarRange(from: string, to: string) {
+    const projectId = selectedProjectRef.current
+    if (!projectId) {
+      setCalendarIssues([])
+      return
+    }
+    setCalendarLoading(true)
+    try {
+      const params = new URLSearchParams({ project_id: String(projectId), from, to })
+      setCalendarIssues(await api(`/issues/calendar?${params}`) as Issue[])
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+      setCalendarIssues([])
+    } finally {
+      setCalendarLoading(false)
+    }
+  }
+
+  async function loadMyIssues() {
+    const requestID = ++myIssuesRequestId.current
+    setMyIssuesLoading(true)
+    setMyIssues([])
+    setMyIssuesErrors([])
+    try {
+      const results = await mapConcurrent(projects, 3, async project => {
+        const projectIssues: Issue[] = []
+        let cursor: number | undefined
+        for (let pageNumber = 0; pageNumber < 100; pageNumber++) {
+          const params = new URLSearchParams({ project_id: String(project.id), assignee_id: String(currentUserID), limit: '50', sort: 'id', direction: 'desc' })
+          if (cursor !== undefined) params.set('after_id', String(cursor))
+          const page = await api(`/issues?${params}`) as Issue[]
+          projectIssues.push(...page)
+          if (page.length < 50) break
+          const nextCursor = Math.min(...page.map(issue => issue.id))
+          if (cursor === nextCursor) break
+          cursor = nextCursor
+        }
+        return projectIssues
+      })
+      if (requestID === myIssuesRequestId.current) setMyIssues(results.flat().sort((a, b) => b.id - a.id))
+    } catch (cause) {
+      if (requestID === myIssuesRequestId.current) setMyIssuesErrors([cause instanceof Error ? cause.message : String(cause)])
+    } finally {
+      if (requestID === myIssuesRequestId.current) setMyIssuesLoading(false)
+    }
+  }
+
+  async function loadActivity() {
+    const requestID = ++activityRequestId.current
+    setActivityLoading(true)
+    setActivityItems([])
+    setActivityPartialErrors([])
+    const results = await mapConcurrent(projects, 3, async project => {
+      try {
+        const events = await api(`/activity?project_id=${project.id}&limit=100`) as ActivityEntry[]
+        return { projectName: project.name, events, failed: false }
+      } catch {
+        return { projectName: project.name, events: [] as ActivityEntry[], failed: true }
+      }
+    })
+    if (requestID === activityRequestId.current) {
+      setActivityItems(results.flatMap(result => result.events).sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at)))
+      setActivityPartialErrors(results.filter(result => result.failed).map(result => result.projectName))
+      setActivityLoading(false)
+    }
+  }
+
+  async function loadAnalytics() {
+    const requestID = ++analyticsRequestId.current
+    const projectID = selectedProjectRef.current
+    setAnalytics(null)
+    setAnalyticsError('')
+    if (!projectID) {
+      setAnalyticsLoading(false)
+      return
+    }
+    setAnalyticsLoading(true)
+    try {
+      const result = await api(`/issues/analytics?project_id=${projectID}`) as AnalyticsSnapshot
+      if (requestID === analyticsRequestId.current) setAnalytics(result)
+    } catch (cause) {
+      if (requestID === analyticsRequestId.current) setAnalyticsError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      if (requestID === analyticsRequestId.current) setAnalyticsLoading(false)
+    }
+  }
+
+  async function loadAdminUsers(afterID: number | null = null) {
+    setAdminUsersLoading(true)
+    setAdminUsersError('')
+    try {
+      const params = new URLSearchParams({ limit: '50' })
+      if (afterID !== null) params.set('after_id', String(afterID))
+      const page = await api(`/users?${params}`) as AdminUser[]
+      setAdminUsers(current => {
+        const combined = afterID === null ? page : [...current, ...page]
+        return Array.from(new Map(combined.map(user => [user.id, user])).values()).sort((a, b) => a.id - b.id)
+      })
+      setAdminUsersAfterID(page.length ? page[page.length - 1].id : afterID)
+      setAdminUsersHasMore(page.length === 50)
+    } catch (cause) {
+      setAdminUsersError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setAdminUsersLoading(false)
+    }
+  }
+
+  async function resetUserPassword(userID: number, temporaryPassword: string) {
+    await api(`/users/${userID}/password-reset`, { method: 'POST', body: JSON.stringify({ temporary_password: temporaryPassword }) })
+    setAdminUsers(current => current.map(user => user.id === userID ? { ...user, password_reset_required: true } : user))
+  }
+
+  async function createAdminUser(email: string, temporaryPassword: string) {
+    const user = await api('/users', { method: 'POST', body: JSON.stringify({ email, temporary_password: temporaryPassword }) }) as { id: number; email: string; role: 'member'; active: boolean; must_change_password: boolean }
+    const newUser: AdminUser = { id: user.id, email: user.email, role: user.role, active: user.active, password_reset_required: user.must_change_password, created_at: new Date().toISOString() }
+    setAdminUsers(current => [newUser, ...current.filter(existing => existing.id !== newUser.id)])
+  }
+
+  async function setAdminUserActive(userID: number, active: boolean) {
+    await api(`/users/${userID}/status`, { method: 'PATCH', body: JSON.stringify({ active }) })
+    setAdminUsers(current => current.map(user => user.id === userID ? { ...user, active } : user))
+  }
+
+  async function manageUserProjects(userID: number) {
+	const requestID = ++managedUserProjectsRequestId.current
+    setManagedUserID(userID)
+    setManagedUserProjectIDs([])
+    setManagedUserProjectsLoading(true)
+    setManagedUserProjectsError('')
+    try {
+      const availableProjects = adminProjects.length ? adminProjects : await api('/projects?scope=all') as Project[]
+      if (adminProjects.length === 0) setAdminProjects(availableProjects)
+      const membershipRows = await mapConcurrent(availableProjects, 4, async project => {
+        const members = await api(`/projects/${project.id}/members`) as ProjectMember[]
+        return [project.id, members.some(member => member.user_id === userID)] as const
+      })
+	  if (managedUserProjectsRequestId.current === requestID) {
+		setManagedUserProjectIDs(membershipRows.filter(([, isMember]) => isMember).map(([projectID]) => projectID))
+	  }
+    } catch (cause) {
+	  if (managedUserProjectsRequestId.current === requestID) setManagedUserProjectsError(cause instanceof Error ? cause.message : 'Could not load project memberships.')
+    } finally {
+	  if (managedUserProjectsRequestId.current === requestID) setManagedUserProjectsLoading(false)
+    }
+  }
+
+  async function toggleAdminUserProject(userID: number, projectID: number, add: boolean) {
+	const requestID = managedUserProjectsRequestId.current
+    if (add) {
+      await api(`/projects/${projectID}/members`, { method: 'POST', body: JSON.stringify({ user_id: userID }) })
+	  if (managedUserProjectsRequestId.current === requestID) setManagedUserProjectIDs(current => current.includes(projectID) ? current : [...current, projectID])
+    } else {
+      await api(`/projects/${projectID}/members?user_id=${userID}`, { method: 'DELETE' })
+	  if (managedUserProjectsRequestId.current === requestID) setManagedUserProjectIDs(current => current.filter(id => id !== projectID))
+    }
+  }
+
+  async function changeRequiredPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setBusy(true)
+    setError('')
+    const form = new FormData(event.currentTarget)
+    if (form.get('new_password') !== form.get('confirm_password')) {
+      setError('The passwords do not match.')
+      setBusy(false)
+      return
+    }
+    try {
+      const data = await api('/auth/password', { method: 'POST', body: JSON.stringify({ new_password: form.get('new_password') }) })
+      localStorage.setItem('token', data.access_token)
+      localStorage.setItem('user_id', String(data.user_id))
+      localStorage.setItem('role', String(data.role || 'member'))
+      setCurrentUserID(Number(data.user_id) || 0)
+      setGlobalRole(String(data.role || 'member'))
+      setToken(data.access_token)
+      setMustChangePassword(false)
+      setError('')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not update password')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function showMyIssues() {
+    setScreen('my-issues')
+    void loadMyIssues()
+  }
+
+  function showActivity() {
+    setScreen('activity')
+    void loadActivity()
+  }
+
+  function showAnalytics() {
+    setScreen('analytics')
+    void loadAnalytics()
+  }
+
+  function showUsers() {
+    setScreen('users')
+    void loadAdminUsers()
+    void loadAdminProjects()
+  }
+
+  async function searchUsers(prefix: string) {
+    const result = await api(`/users/autocomplete?q=${encodeURIComponent(prefix)}`) as UserSuggestion[]
+    return result
+  }
+
+  async function loadUserDirectory(afterID: number | null): Promise<UserDirectoryPage> {
+    const params = new URLSearchParams({ limit: '25' })
+    if (afterID !== null) params.set('after_id', String(afterID))
+    return await api(`/users/directory?${params}`) as UserDirectoryPage
+  }
+
+  async function addProjectMember(userID: number) {
+    if (!selected) return
+    await api(`/projects/${selected}/members`, { method: 'POST', body: JSON.stringify({ user_id: userID }) })
+    await loadProjectMembers(selected)
+  }
+
+  async function removeProjectMember(userID: number) {
+    if (!selected) return
+    await api(`/projects/${selected}/members?user_id=${userID}`, { method: 'DELETE' })
+    await loadProjectMembers(selected)
+  }
+
+  async function setProjectMemberRole(userID: number, role: 'admin' | 'member') {
+    if (!selected) return
+    await api(`/projects/${selected}/members`, { method: 'PATCH', body: JSON.stringify({ user_id: userID, role }) })
+    await loadProjectMembers(selected)
+  }
+
   function addProjectFocus() {
-    setScreen('board')
+    showProjects()
     window.setTimeout(() => document.getElementById('project-name')?.focus(), 0)
+  }
+
+  function showProjects() {
+    setScreen('projects')
+    if (globalRole === 'admin') void loadAdminProjects()
   }
 
   function selectProject(projectId: number) {
     selectedProjectRef.current = projectId
+    setMembers([])
     setSelected(projectId)
+  }
+
+  function openIssue(issue: Issue) {
+    if (issue.project_id && issue.project_id !== selectedProjectRef.current) selectProject(issue.project_id)
+    setSelectedIssue(issue)
   }
 
   function addIssueFocus(status = 'todo') {
@@ -210,12 +659,40 @@ export default function App() {
   function logout() {
     projectRequestId.current++
     issueRequestId.current++
+    myIssuesRequestId.current++
+    activityRequestId.current++
+    analyticsRequestId.current++
+    managedUserProjectsRequestId.current++
     localStorage.removeItem('token')
     localStorage.removeItem('email')
+    localStorage.removeItem('user_id')
+    localStorage.removeItem('role')
+    setCurrentUserID(0)
+    setGlobalRole('member')
+    setMustChangePassword(false)
     selectedProjectRef.current = null
     setSelected(null)
     setProjects([])
     setIssues([])
+    setMyIssues([])
+    setMyIssuesLoading(false)
+    setMyIssuesErrors([])
+    setActivityItems([])
+    setActivityLoading(false)
+    setActivityPartialErrors([])
+    setAnalytics(null)
+    setAnalyticsLoading(false)
+    setAnalyticsError('')
+    setAdminUsers([])
+    setAdminProjects([])
+    setAdminUsersLoading(false)
+    setAdminUsersError('')
+    setAdminUsersAfterID(null)
+    setAdminUsersHasMore(false)
+    setManagedUserID(null)
+    setManagedUserProjectIDs([])
+    setManagedUserProjectsLoading(false)
+    setManagedUserProjectsError('')
     setSelectedIssue(null)
     setCreateIssueOpen(false)
     setScreen('board')
@@ -289,13 +766,70 @@ export default function App() {
     )
   }
 
+  if (mustChangePassword) {
+    return <main className="password-change-page">
+      <section className="password-security-panel" aria-labelledby="security-panel-title">
+        <a className="auth-brand" href="#board" aria-label="Trackline home"><span className="brand-icon material-symbols-outlined" aria-hidden="true">view_kanban</span><span>Trackline</span></a>
+        <div className="password-security-copy">
+          <span className="security-hero-icon material-symbols-outlined" aria-hidden="true">shield_lock</span>
+          <p className="eyebrow">Your account, protected</p>
+          <h2 id="security-panel-title">A quick security check before you get back to work.</h2>
+          <p>Choose a password only you know. Once it’s updated, you can continue to your projects and team workspace.</p>
+          <ul className="security-points">
+            <li><span className="material-symbols-outlined" aria-hidden="true">check_circle</span><span><strong>At least 8 characters</strong><small>Use a password that’s hard to guess.</small></span></li>
+            <li><span className="material-symbols-outlined" aria-hidden="true">check_circle</span><span><strong>Keep it private</strong><small>Don’t reuse a shared or temporary password.</small></span></li>
+          </ul>
+        </div>
+        <p className="security-panel-footer"><span className="material-symbols-outlined" aria-hidden="true">lock</span> Your password is securely protected.</p>
+      </section>
+      <section className="password-change-panel" aria-labelledby="password-change-title">
+        <div className="password-change-card">
+          <div className="password-change-heading"><span className="brand-mark material-symbols-outlined" aria-hidden="true">lock_reset</span><p className="eyebrow">Account security</p><h1 id="password-change-title">Choose a new password</h1><p className="muted">An administrator reset your password. Set a new password to continue.</p></div>
+          <form onSubmit={changeRequiredPassword}>
+            <div className="password-field-group"><label htmlFor="new-password">New password</label><input id="new-password" name="new_password" type="password" minLength={8} maxLength={72} autoComplete="new-password" autoFocus required aria-describedby="new-password-hint" /><small id="new-password-hint">Use at least 8 characters.</small></div>
+            <div className="password-field-group"><label htmlFor="confirm-new-password">Confirm new password</label><input id="confirm-new-password" name="confirm_password" type="password" minLength={8} maxLength={72} autoComplete="new-password" required /></div>
+            <button className="primary-button password-change-submit" disabled={busy}>{busy ? <><span className="material-symbols-outlined" aria-hidden="true">progress_activity</span>Updating password…</> : <>Update password<span className="material-symbols-outlined" aria-hidden="true">arrow_forward</span></>}</button>
+          </form>
+          {error && <p className="error password-change-error" role="alert">{error}</p>}
+          <div className="password-change-signout"><span>Not your account?</span><button type="button" className="secondary-button" onClick={logout}><span className="material-symbols-outlined" aria-hidden="true">logout</span>Sign out</button></div>
+        </div>
+      </section>
+    </main>
+  }
+
   return (
     <>
       <ProjectBoard
         projects={projects}
+        adminProjects={adminProjects}
+        adminProjectsLoading={adminProjectsLoading}
+        adminProjectsError={adminProjectsError}
         selectedProject={selectedProject}
         selectedProjectId={selected}
+        members={members}
+        projectRole={members.find(member => member.user_id === currentUserID)?.role || 'member'}
+        globalRole={globalRole}
         issues={issues}
+        calendarIssues={calendarIssues}
+        calendarLoading={calendarLoading}
+        myIssues={myIssues}
+        myIssuesLoading={myIssuesLoading}
+        myIssuesError={myIssuesErrors[0] || ''}
+        activityItems={activityItems}
+        activityLoading={activityLoading}
+        activityPartialErrors={activityPartialErrors}
+        analytics={analytics}
+        analyticsLoading={analyticsLoading}
+        analyticsError={analyticsError}
+        adminUsers={adminUsers}
+        adminUsersLoading={adminUsersLoading}
+        adminUsersError={adminUsersError}
+        adminUsersHasMore={adminUsersHasMore}
+        managedUserID={managedUserID}
+        managedUserProjectIDs={managedUserProjectIDs}
+        managedUserProjectsLoading={managedUserProjectsLoading}
+        managedUserProjectsError={managedUserProjectsError}
+        currentUserID={currentUserID}
         loading={loadingIssues}
         error={error}
         query={query}
@@ -304,41 +838,57 @@ export default function App() {
         email={localStorage.getItem('email') || ''}
         onSelectProject={selectProject}
         screen={screen}
-        onShowProjects={() => setScreen('projects')}
-        onShowComponents={() => setScreen('components')}
+        onShowProjects={showProjects}
+        onShowCalendar={() => setScreen('calendar')}
+        onShowAdmin={() => setScreen('admin')}
+        onShowMyIssues={showMyIssues}
+        onShowActivity={showActivity}
+        onShowAnalytics={showAnalytics}
+        onShowUsers={showUsers}
+        onLoadMoreUsers={() => void loadAdminUsers(adminUsersAfterID)}
+        onResetUserPassword={resetUserPassword}
+        onCreateUser={createAdminUser}
+        onSetUserActive={setAdminUserActive}
+        onManageUserProjects={manageUserProjects}
+        onToggleUserProject={toggleAdminUserProject}
         onOpenBoard={() => setScreen('board')}
         onAddProject={addProjectFocus}
+        onCreateProject={createProject}
+        onDeleteProject={deleteProject}
+        onLoadUserDirectory={loadUserDirectory}
         onAddIssue={addIssueFocus}
         onLogout={logout}
         onDismissError={() => setError('')}
         onQueryChange={setQuery}
         onStatusFilterChange={setStatusFilter}
         onPriorityFilterChange={setPriorityFilter}
-        onOpenIssue={setSelectedIssue}
+        onOpenIssue={openIssue}
         onSetStatus={setStatus}
-      >
-        <section className="creation-panels" aria-label="Create project or issue">
-          {screen === 'board' && <form className="creation-panel" onSubmit={createProject}>
-            <h2>New project</h2>
-            <div className="creation-fields">
-              <input id="project-name" name="name" placeholder="Project name" required />
-              <input name="description" placeholder="Short description" />
-              <button className="primary-button" type="submit">Create project</button>
-            </div>
-          </form>}
-        </section>
-      </ProjectBoard>
+        onDeleteIssue={deleteIssue}
+        onMoveIssue={moveIssue}
+        onCalendarRangeChange={loadCalendarRange}
+        onSearchUsers={searchUsers}
+        onAddMember={addProjectMember}
+        onRemoveMember={removeProjectMember}
+        onSetMemberRole={setProjectMemberRole}
+        movePending={movePending}
+        moveToast={moveToast}
+        onDismissMoveToast={() => setMoveToast('')}
+      />
       {createIssueOpen && <NewIssueModal
         projects={projects}
         selectedProjectId={selected}
+        members={members}
+        onLoadProjectMembers={fetchProjectMembers}
         initialStatus={newIssueStatus}
         error={error}
         onClose={() => setCreateIssueOpen(false)}
         onSubmit={createIssue}
       />}
-      {selectedIssue && <IssueDetailDrawer issue={selectedIssue} projectId={selected ?? 0} onClose={() => setSelectedIssue(null)} onSaved={async () => {
+      {selectedIssue && <IssueDetailDrawer issue={selectedIssue} projectId={selectedIssue.project_id} members={members} onClose={() => setSelectedIssue(null)} onSaved={async () => {
         setSelectedIssue(null)
-        if (selected) await loadIssues(selected)
+        await loadIssues(selectedIssue.project_id)
+        if (screen === 'my-issues') await loadMyIssues()
       }} />}
     </>
   )
@@ -347,7 +897,7 @@ export default function App() {
 type IssueLabel = { id: number; name: string }
 type ActivityEvent = { id: number; issue_id: number; actor_id: number; event_type: string; payload: Record<string, unknown>; occurred_at: string }
 
-function IssueDetailDrawer({ issue, projectId, onClose, onSaved }: { issue: Issue; projectId: number; onClose: () => void; onSaved: () => Promise<void> }) {
+function IssueDetailDrawer({ issue, projectId, members, onClose, onSaved }: { issue: Issue; projectId: number; members: ProjectMember[]; onClose: () => void; onSaved: () => Promise<void> }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [labels, setLabels] = useState<IssueLabel[]>([])
@@ -435,6 +985,8 @@ function IssueDetailDrawer({ issue, projectId, onClose, onSaved }: { issue: Issu
           priority: form.get('priority'),
           status: form.get('status'),
           assignee_id: String(form.get('assignee_id') || '').trim() ? Number(form.get('assignee_id')) : null,
+          start_date: form.get('start_date') || null,
+          due_date: form.get('due_date') || null,
         }),
       })
       await onSaved()
@@ -491,7 +1043,12 @@ function IssueDetailDrawer({ issue, projectId, onClose, onSaved }: { issue: Issu
                 <label>Status<select name="status" defaultValue={issue.status}><option value="todo">To do</option><option value="in_progress">In progress</option><option value="done">Done</option></select></label>
                 <label>Priority<select name="priority" defaultValue={issue.priority}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></label>
               </div>
-              <label>Assignee ID<input name="assignee_id" type="number" min="1" defaultValue={issue.assignee_id || ''} placeholder="Unassigned" /></label>
+              <label>Assignee<select name="assignee_id" defaultValue={issue.assignee_id || ''}><option value="">Unassigned</option>{members.filter(member => member.active !== false).map(member => <option key={member.user_id} value={member.user_id}>{member.username || `User #${member.user_id}`}{member.role === 'admin' ? ' · Project manager' : ''}</option>)}</select></label>
+              <div className="drawer-fields-row">
+                <label>Planned start<input name="start_date" type="date" defaultValue={issue.start_date || ''} /></label>
+                <label>Due date<input name="due_date" type="date" defaultValue={issue.due_date || ''} min={issue.start_date || undefined} /></label>
+              </div>
+              <div className="issue-milestones" aria-label="Issue timestamps"><span>Assigned: {issue.assigned_at ? new Date(issue.assigned_at).toLocaleString() : 'Not assigned'}</span><span>Started: {issue.started_at ? new Date(issue.started_at).toLocaleString() : 'Not started'}</span><span>Completed: {issue.completed_at ? new Date(issue.completed_at).toLocaleString() : 'Not completed'}</span></div>
               {error && <p className="error-banner" role="alert">{error}</p>}
               <div className="dialog-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button" disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</button></div>
             </form>
@@ -525,17 +1082,29 @@ function activityDescription(item: ActivityEvent) {
   return item.event_type.replace(/([a-z])([A-Z])/g, '$1 $2') || 'Issue updated'
 }
 
-function NewIssueModal({ projects, selectedProjectId, initialStatus, error, onClose, onSubmit }: {
+function NewIssueModal({ projects, selectedProjectId, members: initialMembers, onLoadProjectMembers, initialStatus, error, onClose, onSubmit }: {
   projects: Project[]
   selectedProjectId: number | null
+  members: ProjectMember[]
+  onLoadProjectMembers: (projectID: number) => Promise<ProjectMember[]>
   initialStatus: string
   error: string
   onClose: () => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
 }) {
+  const [projectId, setProjectId] = useState(selectedProjectId ?? projects[0]?.id ?? 0)
+  const [members, setMembers] = useState(initialMembers)
   const dialogRef = useRef<HTMLElement>(null)
   const onCloseRef = useRef(onClose)
+  const loadMembersRef = useRef(onLoadProjectMembers)
   onCloseRef.current = onClose
+  loadMembersRef.current = onLoadProjectMembers
+
+  useEffect(() => {
+    let active = true
+    if (projectId) loadMembersRef.current(projectId).then(result => { if (active) setMembers(result) }).catch(() => { if (active) setMembers([]) })
+    return () => { active = false }
+  }, [projectId])
 
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null
@@ -578,7 +1147,7 @@ function NewIssueModal({ projects, selectedProjectId, initialStatus, error, onCl
         </header>
         <form className="new-issue-form" onSubmit={onSubmit}>
           <label>Project
-            <select name="project_id" aria-label="Issue project" defaultValue={selectedProjectId ?? projects[0]?.id ?? ''} required>
+            <select name="project_id" aria-label="Issue project" value={projectId || ''} onChange={event => setProjectId(Number(event.target.value))} required>
               {projects.map(project => <option value={project.id} key={project.id}>{project.name}</option>)}
             </select>
           </label>
@@ -591,8 +1160,9 @@ function NewIssueModal({ projects, selectedProjectId, initialStatus, error, onCl
           <div className="new-issue-fields">
             <label>Status<select name="status" defaultValue={initialStatus}><option value="todo">To do</option><option value="in_progress">In progress</option><option value="done">Done</option></select></label>
             <label>Priority<select name="priority" defaultValue="medium"><option value="critical">Urgent</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
-            <label>Assignee ID<input name="assignee_id" type="number" min="1" placeholder="Unassigned" /></label>
+            <label>Assignee<select name="assignee_id" defaultValue=""><option value="">Unassigned</option>{members.filter(member => member.active !== false).map(member => <option key={member.user_id} value={member.user_id}>{member.username || `User #${member.user_id}`}</option>)}</select></label>
           </div>
+          <div className="new-issue-fields schedule-fields"><label>Planned start<input name="start_date" type="date" /></label><label>Due date<input name="due_date" type="date" /></label></div>
           <label>Labels <span className="optional-note">Comma-separated (applied after creation)</span>
             <input name="labels" placeholder="e.g. Security, iOS" maxLength={256} />
           </label>

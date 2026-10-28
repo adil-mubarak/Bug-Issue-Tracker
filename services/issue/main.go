@@ -38,11 +38,9 @@ func main() {
 		defer nc.Close()
 	}
 	h := &issueHandler{db: db, projectURL: env("PROJECT_SERVICE_URL", "http://project:8082"), client: &http.Client{Timeout: 3 * time.Second}, events: nc, memberships: lru.New[string, membershipEntry](2048)}
-	mux := http.NewServeMux()
+	mux := newIssueMux(h)
 	mux.Handle("/health", health.Handler(nil))
 	mux.Handle("/ready", health.Handler(func() error { return db.Ping() }))
-	mux.Handle("/issues", h)
-	mux.Handle("/issues/", h)
 	s := &http.Server{Addr: env("ISSUE_ADDR", ":8083"), Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	go func() {
 		slog.Info("issue service listening", "address", s.Addr)
@@ -58,6 +56,15 @@ func main() {
 	defer c()
 	_ = s.Shutdown(ctx)
 }
+
+func newIssueMux(h *issueHandler) *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.Handle("/issues", h)
+	mux.Handle("/issues/", h)
+	mux.Handle("/projects/", h)
+	return mux
+}
+
 func env(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v

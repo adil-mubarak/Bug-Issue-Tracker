@@ -12,14 +12,24 @@ import (
 )
 
 type claims struct {
-	UserID  uint64 `json:"sub"`
-	Role    string `json:"role"`
-	Expires int64  `json:"exp"`
+	UserID               uint64 `json:"sub"`
+	Role                 string `json:"role"`
+	Expires              int64  `json:"exp"`
+	MustChangePassword   bool   `json:"must_change_password,omitempty"`
+	PasswordResetVersion uint64 `json:"password_reset_version,omitempty"`
 }
 
 func IssueToken(userID uint64, role string, secret []byte, lifetime time.Duration) (string, error) {
+	return IssueTokenWithPasswordReset(userID, role, false, secret, lifetime)
+}
+
+func IssueTokenWithPasswordReset(userID uint64, role string, mustChangePassword bool, secret []byte, lifetime time.Duration) (string, error) {
+	return IssueTokenWithResetState(userID, role, mustChangePassword, 0, secret, lifetime)
+}
+
+func IssueTokenWithResetState(userID uint64, role string, mustChangePassword bool, resetVersion uint64, secret []byte, lifetime time.Duration) (string, error) {
 	header, _ := json.Marshal(map[string]string{"alg": "HS256", "typ": "JWT"})
-	body, err := json.Marshal(claims{UserID: userID, Role: role, Expires: time.Now().Add(lifetime).Unix()})
+	body, err := json.Marshal(claims{UserID: userID, Role: role, Expires: time.Now().Add(lifetime).Unix(), MustChangePassword: mustChangePassword, PasswordResetVersion: resetVersion})
 	if err != nil {
 		return "", err
 	}
@@ -30,31 +40,41 @@ func IssueToken(userID uint64, role string, secret []byte, lifetime time.Duratio
 }
 
 func VerifyToken(token string, secret []byte) (uint64, string, error) {
+	userID, role, _, err := VerifyTokenWithPasswordReset(token, secret)
+	return userID, role, err
+}
+
+func VerifyTokenWithPasswordReset(token string, secret []byte) (uint64, string, bool, error) {
+	userID, role, mustChange, _, err := VerifyTokenWithResetState(token, secret)
+	return userID, role, mustChange, err
+}
+
+func VerifyTokenWithResetState(token string, secret []byte) (uint64, string, bool, uint64, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
-		return 0, "", errors.New("invalid token")
+		return 0, "", false, 0, errors.New("invalid token")
 	}
 	mac := hmac.New(sha256.New, secret)
 	_, _ = mac.Write([]byte(parts[0] + "." + parts[1]))
 	signature, err := base64.RawURLEncoding.DecodeString(parts[2])
 	if err != nil || !hmac.Equal(signature, mac.Sum(nil)) {
-		return 0, "", errors.New("invalid signature")
+		return 0, "", false, 0, errors.New("invalid signature")
 	}
 	header, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
-		return 0, "", err
+		return 0, "", false, 0, err
 	}
 	var headerValues map[string]string
 	if err := json.Unmarshal(header, &headerValues); err != nil || headerValues["alg"] != "HS256" {
-		return 0, "", errors.New("invalid algorithm")
+		return 0, "", false, 0, errors.New("invalid algorithm")
 	}
 	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
-		return 0, "", err
+		return 0, "", false, 0, err
 	}
 	var c claims
 	if err := json.Unmarshal(payload, &c); err != nil || c.UserID == 0 || c.Expires <= time.Now().Unix() || (c.Role != "admin" && c.Role != "member") {
-		return 0, "", errors.New("invalid claims")
+		return 0, "", false, 0, errors.New("invalid claims")
 	}
-	return c.UserID, c.Role, nil
+	return c.UserID, c.Role, c.MustChangePassword, c.PasswordResetVersion, nil
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -43,8 +44,16 @@ func TestGatewayAuthenticationAndRouting(t *testing.T) {
 		_, _ = w.Write([]byte(`{"ok":true}`))
 	}))
 	defer upstream.Close()
+	authService := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/auth/session" {
+			_, _ = w.Write([]byte(`{"password_reset_required":false,"password_reset_version":0}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer authService.Close()
 	secret := []byte("gateway-test-secret-at-least-32-bytes")
-	handler := newGatewayHandler(secret, map[string]string{"projects": upstream.URL}, ratelimit.New(10, 1), &http.Transport{ResponseHeaderTimeout: time.Second})
+	handler := newGatewayHandler(secret, map[string]string{"auth": authService.URL, "projects": upstream.URL}, ratelimit.New(10, 1), &http.Transport{ResponseHeaderTimeout: time.Second})
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/projects", nil)
 	handler.ServeHTTP(w, r)
@@ -96,6 +105,10 @@ func TestGatewayProtectsAndRoutesUsernameAutocomplete(t *testing.T) {
 	secret := []byte("gateway-test-secret-at-least-32-bytes")
 	var seenUser, seenPath string
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/auth/session" {
+			_, _ = w.Write([]byte(`{"password_reset_required":false,"password_reset_version":0}`))
+			return
+		}
 		seenUser, seenPath = r.Header.Get("X-User-ID"), r.URL.Path
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`[]`))
@@ -112,6 +125,199 @@ func TestGatewayProtectsAndRoutesUsernameAutocomplete(t *testing.T) {
 	handler.ServeHTTP(w, r)
 	if w.Code != http.StatusOK || seenPath != "/users/autocomplete" || seenUser != "72" {
 		t.Fatalf("status=%d upstream=(%q,%q)", w.Code, seenPath, seenUser)
+	}
+}
+
+func TestGatewayProtectsAndRoutesActiveUserDirectory(t *testing.T) {
+	secret := []byte("gateway-test-secret-at-least-32-bytes")
+	var seenUser, seenPath string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/auth/session" {
+			_, _ = w.Write([]byte(`{"password_reset_required":false,"password_reset_version":0}`))
+			return
+		}
+		seenUser, seenPath = r.Header.Get("X-User-ID"), r.URL.Path
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"users":[],"next_after_id":null}`))
+	}))
+	defer upstream.Close()
+	handler := newGatewayHandler(secret, map[string]string{"auth": upstream.URL}, ratelimit.New(10, 1), http.DefaultTransport)
+	token, err := auth.IssueToken(72, "member", secret, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodGet, "/users/directory?limit=25", nil)
+	request.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, request)
+	if w.Code != http.StatusOK || seenPath != "/users/directory" || seenUser != "72" {
+		t.Fatalf("status=%d upstream=(%q,%q)", w.Code, seenPath, seenUser)
+	}
+}
+
+func TestGatewayProtectsAndRoutesBatchUsernameLookup(t *testing.T) {
+	secret := []byte("gateway-test-secret-at-least-32-bytes")
+	var sawLookup bool
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/auth/session" {
+			_, _ = w.Write([]byte(`{"password_reset_required":false,"password_reset_version":0}`))
+			return
+		}
+		sawLookup = r.URL.Path == "/users/names" && r.Method == http.MethodPost && r.Header.Get("X-User-ID") == "72"
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`[{"id":72,"username":"alex"}]`))
+	}))
+	defer upstream.Close()
+	handler := newGatewayHandler(secret, map[string]string{"auth": upstream.URL}, ratelimit.New(10, 1), http.DefaultTransport)
+	token, err := auth.IssueToken(72, "member", secret, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/users/names", strings.NewReader(`{"user_ids":[72]}`))
+	request.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, request)
+	if w.Code != http.StatusOK || !sawLookup || !strings.Contains(w.Body.String(), `"username":"alex"`) {
+		t.Fatalf("lookup status=%d sawLookup=%v body=%s", w.Code, sawLookup, w.Body.String())
+	}
+}
+
+func TestGatewayProtectsAndRoutesUserStatusChanges(t *testing.T) {
+	secret := []byte("gateway-test-secret-at-least-32-bytes")
+	var forwarded bool
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/auth/session" {
+			_, _ = w.Write([]byte(`{"password_reset_required":false,"password_reset_version":0}`))
+			return
+		}
+		forwarded = r.URL.Path == "/users/18/status" && r.Method == http.MethodPatch && r.Header.Get("X-User-ID") == "1" && r.Header.Get("X-User-Role") == "admin"
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+	handler := newGatewayHandler(secret, map[string]string{"auth": upstream.URL}, ratelimit.New(10, 1), http.DefaultTransport)
+	token, err := auth.IssueToken(1, "admin", secret, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPatch, "/users/18/status", strings.NewReader(`{"active":false}`))
+	request.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, request)
+	if w.Code != http.StatusOK || !forwarded {
+		t.Fatalf("status=%d forwarded=%v", w.Code, forwarded)
+	}
+}
+
+func TestGatewayRestrictsPasswordResetSessionsToPasswordChange(t *testing.T) {
+	secret := []byte("gateway-test-secret-at-least-32-bytes")
+	var seenPath, seenUser, seenReset string
+	hits := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/auth/session" {
+			hits++
+			_, _ = w.Write([]byte(`{"password_reset_required":true,"password_reset_version":1}`))
+			return
+		}
+		hits++
+		seenPath, seenUser, seenReset = r.URL.Path, r.Header.Get("X-User-ID"), r.Header.Get("X-Must-Change-Password")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+	handler := newGatewayHandler(secret, map[string]string{"auth": upstream.URL}, ratelimit.New(10, 1), http.DefaultTransport)
+	token, err := auth.IssueTokenWithResetState(77, "member", true, 1, secret, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/users", nil)
+	r.Header.Set("Authorization", "Bearer "+token)
+	handler.ServeHTTP(w, r)
+	if w.Code != http.StatusForbidden || hits != 1 {
+		t.Fatalf("protected request status=%d upstream hits=%d", w.Code, hits)
+	}
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/auth/password", nil)
+	r.Header.Set("Authorization", "Bearer "+token)
+	handler.ServeHTTP(w, r)
+	if w.Code != http.StatusOK || hits != 3 || seenPath != "/auth/password" || seenUser != "77" || seenReset != "true" {
+		t.Fatalf("password route status=%d hits=%d path=%q user=%q reset=%q", w.Code, hits, seenPath, seenUser, seenReset)
+	}
+}
+
+func TestGatewayRejectsPreviouslyIssuedTokenAfterAdminPasswordReset(t *testing.T) {
+	secret := []byte("gateway-test-secret-at-least-32-bytes")
+	resetRequired := false
+	var projectHits int
+	authService := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/auth/session" {
+			http.NotFound(w, r)
+			return
+		}
+		if resetRequired {
+			_, _ = w.Write([]byte(`{"password_reset_required":true,"password_reset_version":1}`))
+		} else {
+			_, _ = w.Write([]byte(`{"password_reset_required":false,"password_reset_version":0}`))
+		}
+	}))
+	defer authService.Close()
+	projects := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		projectHits++
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer projects.Close()
+	handler := newGatewayHandler(secret, map[string]string{"auth": authService.URL, "projects": projects.URL}, ratelimit.New(10, 1), http.DefaultTransport)
+	oldToken, err := auth.IssueToken(91, "member", secret, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	callProtected := func() *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/projects", nil)
+		r.Header.Set("Authorization", "Bearer "+oldToken)
+		handler.ServeHTTP(w, r)
+		return w
+	}
+	if w := callProtected(); w.Code != http.StatusOK || projectHits != 1 {
+		t.Fatalf("normal session status=%d project hits=%d", w.Code, projectHits)
+	}
+	resetRequired = true
+	if w := callProtected(); w.Code != http.StatusUnauthorized || projectHits != 1 {
+		t.Fatalf("pre-reset token status=%d project hits=%d", w.Code, projectHits)
+	}
+}
+
+func TestGatewayRoutesProjectScopedIssueMovesToIssueService(t *testing.T) {
+	secret := []byte("gateway-test-secret-at-least-32-bytes")
+	var seenPath, seenUser string
+	issueService := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenPath, seenUser = r.URL.Path, r.Header.Get("X-User-ID")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer issueService.Close()
+	projectService := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		t.Error("move request was incorrectly sent to project service")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer projectService.Close()
+	authService := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/auth/session" {
+			_, _ = w.Write([]byte(`{"password_reset_required":false,"password_reset_version":0}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer authService.Close()
+	handler := newGatewayHandler(secret, map[string]string{"auth": authService.URL, "issues": issueService.URL, "projects": projectService.URL}, ratelimit.New(10, 1), http.DefaultTransport)
+	token, err := auth.IssueToken(55, "member", secret, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPatch, "/projects/4/issues/12/move", nil)
+	r.Header.Set("Authorization", "Bearer "+token)
+	handler.ServeHTTP(w, r)
+	if w.Code != http.StatusOK || seenPath != "/projects/4/issues/12/move" || seenUser != "55" {
+		t.Fatalf("status=%d path=%q user=%q", w.Code, seenPath, seenUser)
 	}
 }
 

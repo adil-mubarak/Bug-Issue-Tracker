@@ -20,7 +20,7 @@ func buildIssueQuery(values url.Values) (issueQuery, error) {
 	if err != nil || projectID == 0 {
 		return issueQuery{}, fmt.Errorf("project_id is required")
 	}
-	query := issueQuery{SQL: "SELECT id,project_id,title,description,priority,status,assignee_id,reporter_id FROM issues WHERE project_id=?", Args: []any{projectID}, Limit: 50}
+	query := issueQuery{SQL: "SELECT id,project_id,title,description,priority,status,assignee_id,reporter_id,position,start_date,due_date,assigned_at,started_at,completed_at FROM issues WHERE project_id=?", Args: []any{projectID}, Limit: 50}
 	for _, filter := range []struct{ key, column string }{{"status", "status"}, {"priority", "priority"}, {"assignee_id", "assignee_id"}} {
 		if value := values.Get(filter.key); value != "" {
 			switch filter.key {

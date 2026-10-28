@@ -1,0 +1,131 @@
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import App from './App'
+
+afterEach(() => {
+  cleanup()
+  localStorage.clear()
+  vi.restoreAllMocks()
+})
+
+describe('restoring UI identity from an existing session token', () => {
+  it('uses the token subject for My issues when saved user_id is missing', async () => {
+    const payload = btoa(JSON.stringify({ sub: 42, role: 'member', exp: 4_000_000_000 }))
+    localStorage.setItem('token', `header.${payload}.signature`)
+    const requestedURLs: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      requestedURLs.push(url)
+      if (url.endsWith('/api/projects')) {
+        return new Response(JSON.stringify([{ id: 7, name: 'Project', description: '' }]), { status: 200 })
+      }
+      return new Response(JSON.stringify([]), { status: 200 })
+    }))
+
+    render(<App />)
+    await screen.findByRole('button', { name: 'My issues' })
+    fireEvent.click(screen.getByRole('button', { name: 'My issues' }))
+
+    await waitFor(() => expect(requestedURLs.some(url => url.includes('assignee_id=42'))).toBe(true))
+    expect(requestedURLs.some(url => url.includes('assignee_id=0'))).toBe(false)
+  })
+
+  it('blocks workspace data until a reset-required password is changed', async () => {
+    const payload = btoa(JSON.stringify({ sub: 42, role: 'member', exp: 4_000_000_000, must_change_password: true }))
+    localStorage.setItem('token', `header.${payload}.signature`)
+    const requestedURLs: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      requestedURLs.push(url)
+      if (url === '/api/auth/password') {
+        const nextPayload = btoa(JSON.stringify({ sub: 42, role: 'member', exp: 4_000_000_000 }))
+        return new Response(JSON.stringify({ access_token: `header.${nextPayload}.signature`, user_id: 42, role: 'member', must_change_password: false }), { status: 200 })
+      }
+      return new Response(JSON.stringify([]), { status: 200 })
+    }))
+
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Choose a new password' })
+    expect(screen.getByRole('heading', { name: 'A quick security check before you get back to work.' })).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Sign out' })).not.toBeNull()
+    expect(screen.getByText('Use at least 8 characters.')).not.toBeNull()
+    expect(requestedURLs.some(url => url === '/api/projects')).toBe(false)
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'new-password-1' } })
+    fireEvent.change(screen.getByLabelText('Confirm new password'), { target: { value: 'new-password-1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Update password' }))
+    await screen.findByRole('button', { name: 'New issue' })
+    expect(requestedURLs).toContain('/api/auth/password')
+    await waitFor(() => expect(requestedURLs).toContain('/api/projects'))
+  })
+
+  it('shows global admins all projects with their creator in Projects Directory', async () => {
+    const payload = btoa(JSON.stringify({ sub: 1, role: 'admin', exp: 4_000_000_000 }))
+    localStorage.setItem('token', `header.${payload}.signature`)
+    const deleteProjectCall = vi.fn()
+    let deleteAttempts = 0
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/projects/25' && init?.method === 'DELETE') {
+        deleteProjectCall()
+        deleteAttempts += 1
+        if (deleteAttempts === 1) return new Response(JSON.stringify({ error: 'Project deletion failed.' }), { status: 500 })
+        return new Response(null, { status: 204 })
+      }
+      if (url === '/api/projects') {
+        return new Response(JSON.stringify([]), { status: 200 })
+      }
+      if (url === '/api/projects?scope=all') {
+        return new Response(JSON.stringify([{ id: 25, name: 'User project', description: 'Created by a teammate', owner_id: 7 }]), { status: 200 })
+      }
+      if (url === '/api/users/names') {
+        return new Response(JSON.stringify([{ id: 7, username: 'project.creator', active: true }]), { status: 200 })
+      }
+      if (url.startsWith('/api/users/directory')) {
+        return new Response(JSON.stringify({ users: [], next_after_id: null }), { status: 200 })
+      }
+      return new Response(JSON.stringify([]), { status: 200 })
+    }))
+
+    render(<App />)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Projects' })[0])
+
+    expect(await screen.findByRole('heading', { name: 'All user projects' })).not.toBeNull()
+    expect(await screen.findByText('project.creator')).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Open board' }))
+    expect(await screen.findByRole('heading', { name: 'User project' })).not.toBeNull()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Projects' })[0])
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete project User project' }))
+    const deleteDialog = await screen.findByRole('alertdialog')
+    fireEvent.click(within(deleteDialog).getByRole('button', { name: 'Delete project' }))
+    expect(await within(deleteDialog).findByRole('alert')).not.toBeNull()
+    expect(screen.getByRole('alertdialog')).toBe(deleteDialog)
+    fireEvent.click(within(deleteDialog).getByRole('button', { name: 'Delete project' }))
+    await waitFor(() => expect(deleteProjectCall).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(deleteAttempts).toBe(2))
+    expect(await screen.findByText('No projects have been created yet.')).not.toBeNull()
+  })
+
+  it('resolves member usernames in bounded batches for large projects', async () => {
+    const payload = btoa(JSON.stringify({ sub: 42, role: 'member', exp: 4_000_000_000 }))
+    localStorage.setItem('token', `header.${payload}.signature`)
+    const batches: number[][] = []
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/projects') {
+        return new Response(JSON.stringify([{ id: 7, name: 'Project', description: '' }]), { status: 200 })
+      }
+      if (url === '/api/projects/7/members') {
+        return new Response(JSON.stringify(Array.from({ length: 101 }, (_, index) => ({ user_id: index + 1, role: 'member' }))), { status: 200 })
+      }
+      if (url === '/api/users/names') {
+        batches.push(JSON.parse(String(init?.body)).user_ids as number[])
+        return new Response(JSON.stringify([]), { status: 200 })
+      }
+      return new Response(JSON.stringify([]), { status: 200 })
+    }))
+
+    render(<App />)
+    await waitFor(() => expect(batches).toHaveLength(2))
+    expect(batches.map(batch => batch.length)).toEqual([100, 1])
+  })
+})

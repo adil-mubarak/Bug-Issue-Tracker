@@ -7,7 +7,7 @@ import os
 import urllib.error
 import urllib.request
 
-BASE = os.environ.get("TRACKER_URL", "http://localhost:8080").rstrip("/")
+BASE = os.environ.get("TRACKER_URL", "http://localhost:8082").rstrip("/")
 ADMIN_EMAIL = os.environ.get("SEED_ADMIN_EMAIL", "demo.admin@example.test")
 ADMIN_PASSWORD = os.environ.get("SEED_ADMIN_PASSWORD", "demo-admin-password")
 MEMBER_EMAIL = os.environ.get("SEED_MEMBER_EMAIL", "demo.member@example.test")

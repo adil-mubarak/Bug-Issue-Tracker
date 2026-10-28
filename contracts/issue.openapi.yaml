@@ -24,6 +24,48 @@ paths:
       summary: Create an issue
       responses:
         '201': { description: Issue created }
+  /issues/calendar:
+    get:
+      summary: List scheduled issues overlapping a project calendar date range
+      parameters:
+        - { name: project_id, in: query, required: true, schema: { type: integer, format: int64 } }
+        - { name: from, in: query, required: true, description: Inclusive start date in YYYY-MM-DD format, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, description: Inclusive end date at most 93 days after from, schema: { type: string, format: date } }
+      responses:
+        '200': { description: Scheduled issues overlapping the range }
+        '400': { description: Invalid calendar date range }
+        '403': { description: User is not a project member }
+  /issues/analytics:
+    get:
+      summary: Get current issue counts for a project
+      parameters:
+        - { name: project_id, in: query, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '200': { description: Total counts by status and priority plus open high/critical count }
+        '400': { description: Invalid or missing project_id }
+        '403': { description: User is not a project member }
+  /projects/{projectId}/issues/{issueId}/move:
+    parameters:
+      - { name: projectId, in: path, required: true, schema: { type: integer } }
+      - { name: issueId, in: path, required: true, schema: { type: integer } }
+    patch:
+      summary: Move or reorder an issue in a project's board
+      description: Position is a zero-based final index in the destination status column; positions past the end append.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, position]
+              properties:
+                status: { type: string, enum: [todo, in_progress, done] }
+                position: { type: integer, minimum: 0 }
+      responses:
+        '200': { description: Updated issue including its status and position }
+        '400': { description: Invalid status or position }
+        '403': { description: User is not a project member }
+        '404': { description: Issue not found in the specified project }
   /issues/{issueId}:
     parameters:
       - { name: issueId, in: path, required: true, schema: { type: integer } }
@@ -37,8 +79,10 @@ paths:
         '200': { description: Updated }
     delete:
       summary: Delete an issue
+      description: Allowed for the issue creator (reporter_id), the current assignee, or a global admin. Other project members cannot delete the issue.
       responses:
-        '204': { description: Deleted }
+        '204': { description: Issue deleted }
+        '403': { description: Issue creator, assignee, or global admin required }
   /issues/{issueId}/labels:
     get:
       summary: List labels attached to an issue

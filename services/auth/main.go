@@ -45,6 +45,9 @@ func main() {
 	mux.Handle("/health", health.Handler(nil))
 	mux.Handle("/ready", health.Handler(func() error { return db.Ping() }))
 	mux.Handle("/auth/", h)
+	mux.Handle("/users", h)
+	mux.Handle("/users/", h)
+	mux.Handle("/internal/users/", h)
 	mux.Handle("/users/autocomplete", h)
 	server := &http.Server{Addr: env("AUTH_ADDR", ":8081"), Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	go func() {

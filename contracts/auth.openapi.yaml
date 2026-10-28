@@ -3,6 +3,95 @@ info:
   title: Auth API
   version: 1.0.0
 paths:
+  /users:
+    get:
+      summary: List users for a platform administrator
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: after_id, in: query, schema: { type: integer, format: int64, minimum: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200': { description: User IDs, email addresses, global roles, creation dates, active status, and reset-required flags; no password hashes }
+        '403': { description: Global admin required }
+    post:
+      summary: Create a member account with a temporary password (global admin only)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, temporary_password]
+              properties:
+                email: { type: string, format: email }
+                temporary_password: { type: string, minLength: 8, maxLength: 72 }
+      responses:
+        '201': { description: Member account created; user must change the temporary password at first sign-in }
+        '403': { description: Global admin required }
+        '409': { description: Email already registered }
+  /users/{userId}/status:
+    patch:
+      summary: Activate or deactivate a user without deleting their work history (global admin only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [active]
+              properties:
+                active: { type: boolean }
+      responses:
+        '200': { description: Account status updated; deactivation revokes sessions }
+        '400': { description: Invalid request or self-deactivation attempted }
+        '403': { description: Global admin required }
+        '404': { description: User not found }
+  /users/{userId}/password-reset:
+    post:
+      summary: Set a temporary password and require the user to change it at next login
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [temporary_password]
+              properties:
+                temporary_password: { type: string, minLength: 8, maxLength: 72 }
+      responses:
+        '200': { description: Password reset; user must change it at next login }
+        '403': { description: Global admin required }
+        '404': { description: User not found }
+  /auth/password:
+    post:
+      summary: Set a new password for a session that requires a password change
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [new_password]
+              properties:
+                new_password: { type: string, minLength: 8, maxLength: 72 }
+      responses:
+        '200': { description: Password changed and a refreshed access token returned }
+        '403': { description: Session is not required to change its password }
+  /auth/session:
+    get:
+      summary: Check whether the authenticated user's password reset is still required (gateway internal preflight)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Current password reset requirement for this user ID }
+        '401': { description: Invalid user session }
   /users/autocomplete:
     get:
       summary: Suggest usernames by prefix (authenticated)
@@ -11,6 +100,49 @@ paths:
         - { name: q, in: query, schema: { type: string } }
       responses:
         '200': { description: Matching username objects containing user ID and local-part username; no email addresses }
+  /users/directory:
+    get:
+      summary: List active usernames for project-member selection (authenticated)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: after_id, in: query, schema: { type: integer, format: int64, minimum: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+      responses:
+        '200':
+          description: Paginated active user IDs and usernames only; caller and email addresses are excluded
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [users, next_after_id]
+                properties:
+                  users:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, username]
+                      properties:
+                        id: { type: integer, format: int64 }
+                        username: { type: string }
+                  next_after_id: { type: [integer, 'null'], format: int64 }
+        '400': { description: Invalid pagination parameters }
+        '401': { description: Authentication required }
+  /users/names:
+    post:
+      summary: Resolve usernames for a bounded list of user IDs
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_ids]
+              properties:
+                user_ids: { type: array, minItems: 1, maxItems: 100, items: { type: integer, format: int64, minimum: 1 } }
+      responses:
+        '200': { description: Matching IDs, email-local-part usernames, and account active status only; unknown IDs are omitted, and email addresses are not returned }
+        '400': { description: Invalid or oversized user ID list }
   /auth/register:
     post:
       summary: Register a user
@@ -34,7 +166,20 @@ paths:
             schema:
               $ref: '#/components/schemas/Credentials'
       responses:
-        '200': { description: Access token issued }
+        '200':
+          description: Access token and authenticated user's ID and global role
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, token_type, expires_in, user_id, role, must_change_password]
+                properties:
+                  access_token: { type: string }
+                  token_type: { type: string, const: Bearer }
+                  expires_in: { type: integer }
+                  user_id: { type: integer, format: int64 }
+                  role: { type: string, enum: [admin, member] }
+                  must_change_password: { type: boolean }
         '401': { description: Invalid credentials }
 components:
   schemas:

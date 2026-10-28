@@ -77,6 +77,15 @@ Each service owns its database and accesses another service only through its API
 - Responsive React UI for login, projects, and issue tracking.
 - Issue detail/edit dialog, URL-persisted search/status/priority filters, and
   loading and empty states.
+- Project-scoped manager/admin roles, team controls, project-member issue
+  assignment, and a schedule calendar with planned dates and work milestones.
+- Usable My Issues, Activity, and Analytics sections: assigned issues across
+  projects, a merged recent activity feed, and current per-project counts.
+- Global-admin user directory with admin-initiated temporary password resets
+  and mandatory password changes on next sign-in, account creation, and
+  deactivation/reactivation.
+- Global admins can assign active accounts to projects from the Users page;
+  project managers retain project-scoped member controls.
 
 ## Build roadmap
 
@@ -129,7 +138,7 @@ run targets use `.env` for credentials and published dependency ports. Run
 `cd frontend && npm ci && npx playwright install chromium` once before local
 frontend builds and browser tests. The
 local Vite UI listens on `http://localhost:5173`; the local gateway listens on
-`http://localhost:8080`.
+`http://localhost:8082`.
 
 `migrate-up` applies pending migrations to all service databases by default;
 set `MIGRATE_DATABASE` to target one. `migrate-status` reports the applied
@@ -170,7 +179,7 @@ make docker-up
 This starts MySQL and NATS and applies migrations, but does not start the app.
 For local development, run `make run-bug-issue-tracker` in another terminal.
 For the all-container setup, use `make docker-app-up`; the UI is available at
-`http://localhost:3000` and gateway at `http://localhost:8080`. MySQL is
+`http://localhost:3000` and gateway at `http://localhost:8082`. MySQL is
 available at `localhost:3306` (localhost only), with separate `auth_db`,
 `project_db`, `issue_db`, and `activity_db` databases. To stop the containers:
 
@@ -178,7 +187,7 @@ The seed script uses demo accounts `demo.admin@example.test` and
 `demo.member@example.test` with local-development passwords. Override them with
 `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_MEMBER_EMAIL`, and
 `SEED_MEMBER_PASSWORD` before running it. Set `TRACKER_URL` when the gateway is
-not at `http://localhost:8080`.
+not at `http://localhost:8082`.
 
 ```sh
 make docker-down
@@ -193,4 +202,5 @@ To remove the local database data as well, run `docker compose down -v`.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — architecture and service/event-flow details
 - [`docs/TESTING.md`](docs/TESTING.md) — Go, Playwright, seed, and verification notes
 - [`docs/CONTEXT.md`](docs/CONTEXT.md) — implementation and environment context
+- [`docs/PROJECT_MANAGEMENT.md`](docs/PROJECT_MANAGEMENT.md) — roles, assignment, calendar, and YouTrack-inspired scope
 - [`docs/AGENTS-SKILLS.md`](docs/AGENTS-SKILLS.md) — agent and skill notes

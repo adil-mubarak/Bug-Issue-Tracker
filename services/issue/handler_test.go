@@ -6,8 +6,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/adil/bug-issue-tracker/pkg/lru"
 )
 
 func membershipServer(member bool) *httptest.Server {
@@ -32,11 +34,20 @@ func newIssueTestHandler(t *testing.T, db *sql.DB, member bool) (*issueHandler, 
 }
 
 func sendIssueRequest(h *issueHandler, method, path, body string) *httptest.ResponseRecorder {
+	return sendIssueRequestToRole(h, method, path, body, "member")
+}
+
+func sendIssueRequestTo(handler http.Handler, method, path, body string) *httptest.ResponseRecorder {
+	return sendIssueRequestToRole(handler, method, path, body, "member")
+}
+
+func sendIssueRequestToRole(handler http.Handler, method, path, body, role string) *httptest.ResponseRecorder {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(method, path, strings.NewReader(body))
 	r.Header.Set("X-User-ID", "12")
+	r.Header.Set("X-User-Role", role)
 	r.Header.Set("X-Request-ID", "test-request-id")
-	h.ServeHTTP(w, r)
+	handler.ServeHTTP(w, r)
 	return w
 }
 
@@ -49,7 +60,10 @@ func TestIssueCreateAndMembershipAuthorization(t *testing.T) {
 		defer db.Close()
 		h, closeServer := newIssueTestHandler(t, db, true)
 		defer closeServer()
-		mock.ExpectExec("INSERT INTO issues").WithArgs(uint64(4), "Title", "Description", "medium", "todo", nil, uint64(12)).WillReturnResult(sqlmock.NewResult(30, 1))
+		mock.ExpectBegin()
+		mock.ExpectExec("INSERT INTO issues").WithArgs(uint64(4), "Title", "Description", "medium", "todo", nil, uint64(12), nil, nil, nil, nil, nil).WillReturnResult(sqlmock.NewResult(30, 1))
+		mock.ExpectExec("UPDATE issues SET position=").WithArgs(int64(30), int64(30), uint64(4)).WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
 		w := sendIssueRequest(h, http.MethodPost, "/issues", `{"project_id":4,"title":"Title","description":"Description"}`)
 		if w.Code != http.StatusCreated || !strings.Contains(w.Body.String(), `"id":30`) {
 			t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
@@ -94,6 +108,40 @@ func TestIssueCreateAndMembershipAuthorization(t *testing.T) {
 	})
 }
 
+func TestMembershipCallsForwardGlobalRoleAndIsolateCache(t *testing.T) {
+	var callerRoles []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callerRoles = append(callerRoles, r.Header.Get("X-User-Role"))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"member":` + map[bool]string{true: "true", false: "false"}[r.Header.Get("X-User-Role") == "admin"] + `}`))
+	}))
+	defer server.Close()
+	h := &issueHandler{projectURL: server.URL, client: server.Client(), memberships: lru.New[string, membershipEntry](4)}
+	r := httptest.NewRequest(http.MethodGet, "/issues?project_id=9", nil)
+	r.Header.Set("X-User-ID", "12")
+	r.Header.Set("X-User-Role", "admin")
+	if !h.isMember(r, 9, 12) {
+		t.Fatal("platform admin should receive effective membership from Project")
+	}
+	r.Header.Set("X-User-Role", "member")
+	if h.isMember(r, 9, 12) {
+		t.Fatal("member request must not reuse platform admin's cached membership")
+	}
+	if len(callerRoles) != 2 || callerRoles[0] != "admin" || callerRoles[1] != "member" {
+		t.Fatalf("unexpected role headers forwarded: %#v", callerRoles)
+	}
+
+	assigneeRequest := httptest.NewRequest(http.MethodGet, "/issues", nil)
+	assigneeRequest.Header.Set("X-User-ID", "12")
+	assigneeRequest.Header.Set("X-User-Role", "admin")
+	if !h.isAssigneeMember(assigneeRequest, 9, 7) {
+		t.Fatal("expected Project to confirm target membership")
+	}
+	if callerRoles[len(callerRoles)-1] != "admin" {
+		t.Fatalf("assignee membership call did not forward global role: %#v", callerRoles)
+	}
+}
+
 func TestIssueListValidatesCursorAndLimit(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -123,7 +171,7 @@ func TestIssueGetUpdateAndDelete(t *testing.T) {
 	defer closeServer()
 
 	mock.ExpectQuery("SELECT project_id FROM issues WHERE id=").WithArgs(uint64(30)).WillReturnRows(sqlmock.NewRows([]string{"project_id"}).AddRow(4))
-	mock.ExpectQuery("SELECT id,project_id,title,description,priority,status,assignee_id,reporter_id FROM issues WHERE id=").WithArgs(uint64(30)).WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "title", "description", "priority", "status", "assignee_id", "reporter_id"}).AddRow(30, 4, "A bug", "Details", "high", "todo", nil, 12))
+	mock.ExpectQuery("SELECT id,project_id,title,description,priority,status,assignee_id,reporter_id,position,start_date,due_date,assigned_at,started_at,completed_at FROM issues WHERE id=").WithArgs(uint64(30)).WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "title", "description", "priority", "status", "assignee_id", "reporter_id", "position", "start_date", "due_date", "assigned_at", "started_at", "completed_at"}).AddRow(30, 4, "A bug", "Details", "high", "todo", nil, 12, 0, nil, nil, nil, nil, nil))
 	w := sendIssueRequest(h, http.MethodGet, "/issues/30", "")
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"title":"A bug"`) {
 		t.Fatalf("get status=%d body=%s", w.Code, w.Body.String())
@@ -131,21 +179,56 @@ func TestIssueGetUpdateAndDelete(t *testing.T) {
 
 	mock.ExpectQuery("SELECT project_id FROM issues WHERE id=").WithArgs(uint64(30)).WillReturnRows(sqlmock.NewRows([]string{"project_id"}).AddRow(4))
 	mock.ExpectQuery("SELECT project_id FROM issues WHERE id=").WithArgs(uint64(30)).WillReturnRows(sqlmock.NewRows([]string{"project_id"}).AddRow(4))
-	mock.ExpectQuery("SELECT status FROM issues WHERE id=").WithArgs(uint64(30)).WillReturnRows(sqlmock.NewRows([]string{"status"}).AddRow("todo"))
-	mock.ExpectExec("UPDATE issues SET title=").WithArgs("Fixed", "Details", "high", "in_progress", nil, uint64(30)).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT id,status,position,assignee_id,assigned_at,started_at,completed_at FROM issues WHERE project_id=.*FOR UPDATE").WithArgs(uint64(4)).WillReturnRows(sqlmock.NewRows([]string{"id", "status", "position", "assignee_id", "assigned_at", "started_at", "completed_at"}).AddRow(30, "todo", 0, nil, nil, nil, nil))
+	mock.ExpectExec("UPDATE issues SET title=").WithArgs("Fixed", "Details", "high", "in_progress", nil, uint64(0), nil, nil, nil, sqlmock.AnyArg(), nil, uint64(30), uint64(4)).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
 	w = sendIssueRequest(h, http.MethodPatch, "/issues/30", `{"title":"Fixed","description":"Details","priority":"high","status":"in_progress"}`)
 	if w.Code != http.StatusOK {
 		t.Fatalf("update status=%d body=%s", w.Code, w.Body.String())
 	}
 
 	mock.ExpectQuery("SELECT project_id FROM issues WHERE id=").WithArgs(uint64(30)).WillReturnRows(sqlmock.NewRows([]string{"project_id"}).AddRow(4))
-	mock.ExpectExec("DELETE FROM issues WHERE id=").WithArgs(uint64(30)).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("DELETE FROM issues WHERE id=.*reporter_id=.*assignee_id=.*").WithArgs(uint64(30), uint64(4), uint64(12), uint64(12), "member").WillReturnResult(sqlmock.NewResult(0, 1))
 	w = sendIssueRequest(h, http.MethodDelete, "/issues/30", "")
 	if w.Code != http.StatusNoContent {
 		t.Fatalf("delete status=%d", w.Code)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestIssueDeleteRequiresReporterAssigneeOrGlobalAdmin(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		role       string
+		rows       int64
+		wantStatus int
+	}{
+		{name: "issue creator", role: "member", rows: 1, wantStatus: http.StatusNoContent},
+		{name: "assigned user", role: "member", rows: 1, wantStatus: http.StatusNoContent},
+		{name: "unrelated project member", role: "member", rows: 0, wantStatus: http.StatusForbidden},
+		{name: "global admin", role: "admin", rows: 1, wantStatus: http.StatusNoContent},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+			h, closeServer := newIssueTestHandler(t, db, true)
+			defer closeServer()
+			mock.ExpectQuery("SELECT project_id FROM issues WHERE id=").WithArgs(uint64(31)).WillReturnRows(sqlmock.NewRows([]string{"project_id"}).AddRow(4))
+			mock.ExpectExec("DELETE FROM issues WHERE id=.*reporter_id=.*assignee_id=.*").WithArgs(uint64(31), uint64(4), uint64(12), uint64(12), test.role).WillReturnResult(sqlmock.NewResult(0, test.rows))
+			w := sendIssueRequestToRole(h, http.MethodDelete, "/issues/31", "", test.role)
+			if w.Code != test.wantStatus {
+				t.Fatalf("delete status=%d body=%s want=%d", w.Code, w.Body.String(), test.wantStatus)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }
 
@@ -217,4 +300,213 @@ func TestIssueRoutesRequireGatewayIdentity(t *testing.T) {
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("status=%d", w.Code)
 	}
+}
+
+func TestIssueMoveReordersWithinColumn(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	h, closeServer := newIssueTestHandler(t, db, true)
+	defer closeServer()
+
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT id,project_id,title,description,priority,status,assignee_id,reporter_id,position,start_date,due_date,assigned_at,started_at,completed_at FROM issues WHERE project_id=.*FOR UPDATE").WithArgs(uint64(4)).WillReturnRows(issueMoveRows(
+		moveTestIssue(1, "todo", 0), moveTestIssue(2, "todo", 1), moveTestIssue(3, "todo", 2),
+	))
+	for _, update := range []struct {
+		status string
+		pos    uint64
+		id     uint64
+	}{{"todo", 0, 2}, {"todo", 1, 3}, {"todo", 2, 1}} {
+		mock.ExpectExec("UPDATE issues SET status=").WithArgs(update.status, update.pos, nil, nil, update.id, uint64(4)).WillReturnResult(sqlmock.NewResult(0, 1))
+	}
+	mock.ExpectCommit()
+
+	w := sendIssueRequest(h, http.MethodPatch, "/projects/4/issues/1/move", `{"status":"todo","position":2}`)
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"id":1`) || !strings.Contains(w.Body.String(), `"position":2`) {
+		t.Fatalf("move status=%d body=%s", w.Code, w.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestIssueMoveAcrossColumns(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	h, closeServer := newIssueTestHandler(t, db, true)
+	defer closeServer()
+
+	mock.ExpectBegin()
+	mock.ExpectQuery("SELECT id,project_id,title,description,priority,status,assignee_id,reporter_id,position,start_date,due_date,assigned_at,started_at,completed_at FROM issues WHERE project_id=.*FOR UPDATE").WithArgs(uint64(4)).WillReturnRows(issueMoveRows(
+		moveTestIssue(1, "todo", 0), moveTestIssue(2, "todo", 1), moveTestIssue(3, "done", 0),
+	))
+	for _, update := range []struct {
+		status string
+		pos    uint64
+		id     uint64
+	}{{"todo", 0, 1}, {"done", 0, 2}, {"done", 1, 3}} {
+		completed := any(nil)
+		if update.id == 2 {
+			completed = sqlmock.AnyArg()
+		}
+		mock.ExpectExec("UPDATE issues SET status=").WithArgs(update.status, update.pos, nil, completed, update.id, uint64(4)).WillReturnResult(sqlmock.NewResult(0, 1))
+	}
+	mock.ExpectCommit()
+
+	// Exercise the production mux registration: direct handler tests alone would
+	// miss a route omitted from the service's ServeMux.
+	w := sendIssueRequestTo(newIssueMux(h), http.MethodPatch, "/projects/4/issues/2/move", `{"status":"done","position":0}`)
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"status":"done"`) || !strings.Contains(w.Body.String(), `"position":0`) {
+		t.Fatalf("move status=%d body=%s", w.Code, w.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestIssueMoveRejectsInvalidStatus(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	h := &issueHandler{db: db}
+	w := sendIssueRequest(h, http.MethodPatch, "/projects/4/issues/1/move", `{"status":"blocked","position":0}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestIssueMoveRequiresProjectMembership(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	h, closeServer := newIssueTestHandler(t, db, false)
+	defer closeServer()
+	w := sendIssueRequest(h, http.MethodPatch, "/projects/4/issues/1/move", `{"status":"todo","position":0}`)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestIssueRejectsAssigneeOutsideProject(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("user_id") == "77" {
+			_, _ = w.Write([]byte(`{"member":false}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"member":true}`))
+	}))
+	defer server.Close()
+	h := &issueHandler{db: db, projectURL: server.URL, client: server.Client()}
+	w := sendIssueRequest(h, http.MethodPost, "/issues", `{"project_id":4,"title":"Issue","assignee_id":77}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestIssueScheduleRequiresDueDateAfterStartDate(t *testing.T) {
+	start := dateValue{Time: time.Date(2026, time.January, 5, 0, 0, 0, 0, time.UTC), Valid: true}
+	due := dateValue{Time: time.Date(2026, time.January, 4, 0, 0, 0, 0, time.UTC), Valid: true}
+	if validIssueSchedule(start, due) {
+		t.Fatal("expected reversed issue schedule to be rejected")
+	}
+}
+
+func TestIssueCalendarListsDateRangeOverlapsForProjectMember(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	h, closeServer := newIssueTestHandler(t, db, true)
+	defer closeServer()
+	start := "2026-10-05"
+	due := "2026-10-12"
+	mock.ExpectQuery("SELECT id,project_id,title,description,priority,status,assignee_id,reporter_id,position,start_date,due_date,assigned_at,started_at,completed_at FROM issues WHERE project_id=.*ORDER BY COALESCE").WithArgs(uint64(4), "2026-10-31", "2026-10-01", "2026-10-01", "2026-10-31", "2026-10-01", "2026-10-31", "2026-10-01", "2026-10-31", "2026-10-01", "2026-10-31", "2026-10-01", "2026-10-31").WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "title", "description", "priority", "status", "assignee_id", "reporter_id", "position", "start_date", "due_date", "assigned_at", "started_at", "completed_at"}).AddRow(9, 4, "Release task", "", "high", "todo", nil, 12, 0, start, due, nil, nil, nil))
+	w := sendIssueRequest(h, http.MethodGet, "/issues/calendar?project_id=4&from=2026-10-01&to=2026-10-31", "")
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"start_date":"2026-10-05"`) || !strings.Contains(w.Body.String(), `"due_date":"2026-10-12"`) {
+		t.Fatalf("calendar status=%d body=%s", w.Code, w.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestProjectAnalyticsReturnsCurrentIssueCounts(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	h, closeServer := newIssueTestHandler(t, db, true)
+	defer closeServer()
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\).*FROM issues WHERE project_id=\\?").WithArgs(uint64(4)).WillReturnRows(sqlmock.NewRows([]string{"total", "todo", "in_progress", "done", "critical", "high", "medium", "low", "open_high"}).AddRow(8, 2, 3, 3, 1, 2, 4, 1, 2))
+	w := sendIssueRequest(h, http.MethodGet, "/issues/analytics?project_id=4", "")
+	for _, expected := range []string{`"total":8`, `"todo":2`, `"in_progress":3`, `"done":3`, `"critical":1`, `"high":2`, `"open_high_priority":2`} {
+		if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), expected) {
+			t.Fatalf("analytics status=%d missing %s body=%s", w.Code, expected, w.Body.String())
+		}
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestProjectAnalyticsRequiresMembershipAndProjectID(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	h, closeServer := newIssueTestHandler(t, db, false)
+	defer closeServer()
+	w := sendIssueRequest(h, http.MethodGet, "/issues/analytics?project_id=4", "")
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("non-member analytics status=%d body=%s", w.Code, w.Body.String())
+	}
+	w = sendIssueRequest(h, http.MethodGet, "/issues/analytics", "")
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("missing project_id status=%d", w.Code)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func issueMoveRows(issues ...issue) *sqlmock.Rows {
+	rows := sqlmock.NewRows([]string{"id", "project_id", "title", "description", "priority", "status", "assignee_id", "reporter_id", "position", "start_date", "due_date", "assigned_at", "started_at", "completed_at"})
+	for _, item := range issues {
+		start, _ := item.StartDate.Value()
+		due, _ := item.DueDate.Value()
+		rows.AddRow(item.ID, item.ProjectID, item.Title, item.Description, item.Priority, item.Status, item.AssigneeID, item.ReporterID, item.Position, start, due, item.AssignedAt, item.StartedAt, item.CompletedAt)
+	}
+	return rows
+}
+
+func moveTestIssue(id uint64, status string, position uint64) issue {
+	return issue{ID: id, ProjectID: 4, Title: "Issue", Description: "", Priority: "medium", Status: status, ReporterID: 12, Position: position}
 }

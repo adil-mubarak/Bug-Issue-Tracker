@@ -78,9 +78,12 @@ services:
     environment:
       PROJECT_ADDR: ":8082"
       PROJECT_DATABASE_URL: root:${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}@tcp(mysql:3306)/project_db?parseTime=true
+      AUTH_SERVICE_URL: http://auth:8081
     depends_on:
       migrate:
         condition: service_completed_successfully
+      auth:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8082/health >/dev/null"]
       interval: 5s
@@ -139,9 +142,9 @@ services:
       context: .
       dockerfile: gateway/Dockerfile
     ports:
-      - "${GATEWAY_PORT:-8080}:8080"
+      - "${GATEWAY_PORT:-8082}:8082"
     environment:
-      GATEWAY_ADDR: ":8080"
+      GATEWAY_ADDR: ":8082"
       AUTH_SERVICE_URL: http://auth:8081
       PROJECT_SERVICE_URL: http://project:8082
       ISSUE_SERVICE_URL: http://issue:8083
