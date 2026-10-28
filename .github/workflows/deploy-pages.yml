@@ -35,7 +35,14 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefix frontend
       - name: Build frontend
-        run: npm run build --prefix frontend
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        run: |
+          if ! node -e 'try { const value = process.env.VITE_API_BASE_URL; const url = new URL(value); if (url.protocol !== "https:" || !url.hostname || url.username || url.password || (value !== url.origin && value !== `${url.origin}/`)) process.exit(1) } catch { process.exit(1) }'; then
+            echo "::error::Set VITE_API_BASE_URL to the backend HTTPS origin (scheme and hostname only)."
+            exit 1
+          fi
+          npm run build --prefix frontend
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

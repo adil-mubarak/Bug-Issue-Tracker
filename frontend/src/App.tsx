@@ -1,9 +1,11 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { ActivityEntry, AdminUser, AnalyticsSnapshot, applyIssueMove, Issue, Project, ProjectBoard, ProjectMember, UserDirectoryPage, UserSuggestion } from './ProjectBoard'
 
+const apiBaseURL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
+
 const api = async (path: string, options: RequestInit = {}) => {
   const token = localStorage.getItem('token')
-  const response = await fetch(`/api${path}`, {
+  const response = await fetch(`${apiBaseURL}/api${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
