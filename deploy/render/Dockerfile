@@ -20,7 +20,7 @@ RUN apk add --no-cache bash ca-certificates curl tini netcat-openbsd \
     && chown -R app:app /app /tmp/trackline-nats
 COPY --from=build /out/ /usr/local/bin/
 COPY --from=build /go/bin/migrate /usr/local/bin/migrate
-COPY --from=nats /nats-server /usr/local/bin/nats-server
+COPY --from=nats /usr/local/bin/nats-server /usr/local/bin/nats-server
 COPY db/migrations/ /app/migrations/
 COPY deploy/render/start.sh /app/start.sh
 RUN chmod 0555 /app/start.sh
