@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Bug Issue Tracker Gateway
+  title: Trackline Gateway API
   version: 1.0.0
 paths:
   /health:

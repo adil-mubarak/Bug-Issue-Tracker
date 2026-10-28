@@ -1,6 +1,6 @@
-# Bug / Issue Tracker
+# Trackline
 
-A project and issue tracking application built as a Go microservices system with a React frontend and MySQL.
+Trackline is a project and issue tracking application built as a Go microservices system with a React frontend and MySQL.
 
 ## Project goals
 
@@ -118,7 +118,7 @@ Run `make` or `make help` to list targets. Examples:
 
 ```sh
 make docker-up                                     # MySQL, NATS, then migrations
-make run-bug-issue-tracker                         # run frontend + backend locally
+make run-trackline                                  # run frontend + backend locally
 make run-backend                                   # run Go services locally
 make run-frontend                                  # run the Vite frontend locally
 make migrate-up                                    # migrate all service databases
@@ -177,7 +177,8 @@ make docker-up
 ```
 
 This starts MySQL and NATS and applies migrations, but does not start the app.
-For local development, run `make run-bug-issue-tracker` in another terminal.
+For local development, run `make run-trackline` in another terminal. The legacy
+`run-bug-issue-tracker` Make target remains available as an alias.
 For the all-container setup, use `make docker-app-up`; the UI is available at
 `http://localhost:3000` and gateway at `http://localhost:8082`. MySQL is
 available at `localhost:3306` (localhost only), with separate `auth_db`,

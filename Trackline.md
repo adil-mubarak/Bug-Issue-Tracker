@@ -1,4 +1,4 @@
-# Build Plan: Bug / Issue Tracker (Go microservices + MySQL + React)
+# Trackline Build Plan (Go microservices + MySQL + React)
 
 The plan has two tracks. The **app track** is what you build, and the **assignment track** is what you document in each phase. Doing both together means your prompt history and context notes are written as you go, not reconstructed at the end.
 
