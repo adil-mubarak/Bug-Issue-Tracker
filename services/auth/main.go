@@ -13,11 +13,16 @@ import (
 
 	"github.com/adil/bug-issue-tracker/pkg/health"
 	"github.com/adil/bug-issue-tracker/pkg/logging"
+	"github.com/adil/bug-issue-tracker/pkg/mysqltls"
 	_ "github.com/go-sql-driver/mysql"
 )
 
 func main() {
 	logging.Configure()
+	if err := mysqltls.RegisterFromEnv(); err != nil {
+		slog.Error("configure database TLS", "error", err)
+		os.Exit(1)
+	}
 	dsn := env("AUTH_DATABASE_URL", "")
 	if dsn == "" {
 		slog.Error("AUTH_DATABASE_URL must be set")

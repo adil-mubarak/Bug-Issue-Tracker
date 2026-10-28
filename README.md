@@ -204,4 +204,5 @@ To remove the local database data as well, run `docker compose down -v`.
 - [`docs/TESTING.md`](docs/TESTING.md) — Go, Playwright, seed, and verification notes
 - [`docs/CONTEXT.md`](docs/CONTEXT.md) — implementation and environment context
 - [`docs/PROJECT_MANAGEMENT.md`](docs/PROJECT_MANAGEMENT.md) — roles, assignment, calendar, and YouTrack-inspired scope
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — GitHub Pages frontend and Render free-tier backend deployment
 - [`docs/AGENTS-SKILLS.md`](docs/AGENTS-SKILLS.md) — agent and skill notes

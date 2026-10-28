@@ -13,11 +13,16 @@ import (
 
 	"github.com/adil/bug-issue-tracker/pkg/health"
 	"github.com/adil/bug-issue-tracker/pkg/logging"
+	"github.com/adil/bug-issue-tracker/pkg/mysqltls"
 	_ "github.com/go-sql-driver/mysql"
 )
 
 func main() {
 	logging.Configure()
+	if err := mysqltls.RegisterFromEnv(); err != nil {
+		slog.Error("configure database TLS", "error", err)
+		os.Exit(1)
+	}
 	db, err := sql.Open("mysql", env("PROJECT_DATABASE_URL", ""))
 	if err != nil {
 		slog.Error("open database", "error", err)

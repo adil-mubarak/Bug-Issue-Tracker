@@ -337,3 +337,65 @@ func TestGatewayReadinessChecksEveryUpstream(t *testing.T) {
 		t.Fatal("expected unavailable upstream error")
 	}
 }
+
+func TestCORSPreflightRequiresExactAllowedOrigin(t *testing.T) {
+	var nextCalled bool
+	next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) { nextCalled = true })
+	handler := corsMiddleware(parseAllowedOrigins(" https://trackline.example,https://staging.trackline.example "), next)
+
+	tests := []struct {
+		name       string
+		origin     string
+		wantStatus int
+		wantAllow  string
+	}{
+		{name: "allowed origin", origin: "https://trackline.example", wantStatus: http.StatusNoContent, wantAllow: "https://trackline.example"},
+		{name: "unlisted origin", origin: "https://evil.example", wantStatus: http.StatusForbidden},
+		{name: "missing origin", wantStatus: http.StatusForbidden},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodOptions, "/api/auth/login", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			req.Header.Set("Access-Control-Request-Method", "POST")
+			req.Header.Set("Access-Control-Request-Headers", "authorization,content-type")
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
+			if w.Code != tt.wantStatus {
+				t.Fatalf("status=%d, want %d", w.Code, tt.wantStatus)
+			}
+			if got := w.Header().Get("Access-Control-Allow-Origin"); got != tt.wantAllow {
+				t.Errorf("allow origin=%q, want %q", got, tt.wantAllow)
+			}
+			if tt.wantStatus == http.StatusNoContent && w.Header().Get("Access-Control-Allow-Headers") == "" {
+				t.Error("allowed preflight has no allowed request headers")
+			}
+		})
+	}
+	if nextCalled {
+		t.Fatal("preflight request unexpectedly reached downstream handler")
+	}
+}
+
+func TestCORSAddsOriginHeaderOnlyForAllowedOrigins(t *testing.T) {
+	handler := corsMiddleware([]string{"https://trackline.example"}, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	for _, tt := range []struct {
+		origin string
+		want   string
+	}{
+		{origin: "https://trackline.example", want: "https://trackline.example"},
+		{origin: "https://other.example", want: ""},
+	} {
+		req := httptest.NewRequest(http.MethodGet, "/api/projects", nil)
+		req.Header.Set("Origin", tt.origin)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		if got := w.Header().Get("Access-Control-Allow-Origin"); got != tt.want {
+			t.Errorf("origin %q: allow-origin=%q, want %q", tt.origin, got, tt.want)
+		}
+	}
+}
