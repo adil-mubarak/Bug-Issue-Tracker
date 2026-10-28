@@ -1,0 +1,125 @@
+openapi: 3.1.0
+info:
+  title: Issue API
+  version: 1.0.0
+security: [{ bearerAuth: [] }]
+paths:
+  /issues:
+    get:
+      summary: List project issues with filters and keyset pagination
+      parameters:
+        - { name: project_id, in: query, required: true, schema: { type: integer } }
+        - { name: status, in: query, schema: { type: string, enum: [todo, in_progress, done] } }
+        - { name: priority, in: query, schema: { type: string, enum: [low, medium, high, critical] } }
+        - { name: assignee_id, in: query, schema: { type: integer } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: label, in: query, description: Comma-separated label names; all must match, schema: { type: string } }
+        - { name: after_id, in: query, schema: { type: integer } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50 } }
+        - { name: sort, in: query, description: Allowlisted fields; after_id cursor pagination is supported only with sort=id, schema: { type: string, enum: [id, title, priority, status, created_at] } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc] } }
+      responses:
+        '200': { description: Issue list }
+    post:
+      summary: Create an issue
+      responses:
+        '201': { description: Issue created }
+  /issues/calendar:
+    get:
+      summary: List scheduled issues overlapping a project calendar date range
+      parameters:
+        - { name: project_id, in: query, required: true, schema: { type: integer, format: int64 } }
+        - { name: from, in: query, required: true, description: Inclusive start date in YYYY-MM-DD format, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, description: Inclusive end date at most 93 days after from, schema: { type: string, format: date } }
+      responses:
+        '200': { description: Scheduled issues overlapping the range }
+        '400': { description: Invalid calendar date range }
+        '403': { description: User is not a project member }
+  /issues/analytics:
+    get:
+      summary: Get current issue counts for a project
+      parameters:
+        - { name: project_id, in: query, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '200': { description: Total counts by status and priority plus open high/critical count }
+        '400': { description: Invalid or missing project_id }
+        '403': { description: User is not a project member }
+  /projects/{projectId}/issues/{issueId}/move:
+    parameters:
+      - { name: projectId, in: path, required: true, schema: { type: integer } }
+      - { name: issueId, in: path, required: true, schema: { type: integer } }
+    patch:
+      summary: Move or reorder an issue in a project's board
+      description: Position is a zero-based final index in the destination status column; positions past the end append.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, position]
+              properties:
+                status: { type: string, enum: [todo, in_progress, done] }
+                position: { type: integer, minimum: 0 }
+      responses:
+        '200': { description: Updated issue including its status and position }
+        '400': { description: Invalid status or position }
+        '403': { description: User is not a project member }
+        '404': { description: Issue not found in the specified project }
+  /issues/{issueId}:
+    parameters:
+      - { name: issueId, in: path, required: true, schema: { type: integer } }
+    get:
+      summary: Get issue details
+      responses:
+        '200': { description: Issue }
+    put:
+      summary: Update an issue
+      responses:
+        '200': { description: Updated }
+    delete:
+      summary: Delete an issue
+      description: Allowed for the issue creator (reporter_id), the current assignee, or a global admin. Other project members cannot delete the issue.
+      responses:
+        '204': { description: Issue deleted }
+        '403': { description: Issue creator, assignee, or global admin required }
+  /issues/{issueId}/labels:
+    get:
+      summary: List labels attached to an issue
+      responses:
+        '200': { description: Attached labels }
+    post:
+      summary: Attach a label to an issue
+      responses:
+        '201': { description: Label attached }
+  /issues/{issueId}/dependencies:
+    get:
+      summary: List issues blocking this issue
+      responses:
+        '200': { description: Dependency issue IDs }
+    post:
+      summary: Add a blocking dependency, rejecting cycles
+      responses:
+        '201': { description: Dependency added }
+        '409': { description: Dependency creates a cycle }
+  /issues/work-order:
+    get:
+      summary: Return a dependency-respecting work order for a project
+      parameters:
+        - { name: project_id, in: query, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Ordered issue IDs, dependencies precede blocked issues }
+  /issues/labels/autocomplete:
+    get:
+      summary: Suggest project labels by prefix
+      parameters:
+        - { name: project_id, in: query, required: true, schema: { type: integer } }
+        - { name: q, in: query, schema: { type: string } }
+      responses:
+        '200': { description: Matching label names }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

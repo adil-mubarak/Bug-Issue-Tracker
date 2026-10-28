@@ -1,0 +1,175 @@
+services:
+  nats:
+    image: nats:2.10-alpine
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "127.0.0.1:${NATS_PORT:-4222}:4222"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8222/healthz >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'mysqladmin ping -h 127.0.0.1 -uroot -p"$${MYSQL_ROOT_PASSWORD}" --silent'
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  migrate:
+    image: migrate/migrate:v4.18.3
+    depends_on:
+      mysql:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        case "$${MIGRATE_DATABASE:-all}" in all|auth_db|project_db|issue_db|activity_db) ;; *) echo "Unknown MIGRATE_DATABASE: $${MIGRATE_DATABASE}" >&2; exit 2 ;; esac
+        for database in auth_db project_db issue_db activity_db; do
+          if [ "$${MIGRATE_DATABASE:-all}" != all ] && [ "$${MIGRATE_DATABASE}" != "$$database" ]; then
+            continue
+          fi
+          echo "Applying migrations to $$database"
+          migrate -path "/migrations/$$database" \
+            -database "mysql://root:$${MYSQL_ROOT_PASSWORD}@tcp(mysql:3306)/$$database?multiStatements=true" up
+        done
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+    volumes:
+      - ./db/migrations:/migrations:ro
+    restart: "no"
+
+  auth:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: services/auth/Dockerfile
+    environment:
+      AUTH_ADDR: ":8081"
+      AUTH_DATABASE_URL: root:${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}@tcp(mysql:3306)/auth_db?parseTime=true
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8081/health >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  project:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: services/project/Dockerfile
+    environment:
+      PROJECT_ADDR: ":8082"
+      PROJECT_DATABASE_URL: root:${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}@tcp(mysql:3306)/project_db?parseTime=true
+      AUTH_SERVICE_URL: http://auth:8081
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      auth:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8082/health >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  issue:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: services/issue/Dockerfile
+    environment:
+      ISSUE_ADDR: ":8083"
+      ISSUE_DATABASE_URL: root:${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}@tcp(mysql:3306)/issue_db?parseTime=true
+      PROJECT_SERVICE_URL: http://project:8082
+      NATS_URL: nats://nats:4222
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      project:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8083/health >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  activity:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: services/activity/Dockerfile
+    environment:
+      ACTIVITY_ADDR: ":8084"
+      ACTIVITY_DATABASE_URL: root:${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}@tcp(mysql:3306)/activity_db?parseTime=true
+      NATS_URL: nats://nats:4222
+      PROJECT_SERVICE_URL: http://project:8082
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      nats:
+        condition: service_healthy
+      project:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8084/health >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  gateway:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    ports:
+      - "${GATEWAY_PORT:-8082}:8082"
+    environment:
+      GATEWAY_ADDR: ":8082"
+      AUTH_SERVICE_URL: http://auth:8081
+      PROJECT_SERVICE_URL: http://project:8082
+      ISSUE_SERVICE_URL: http://issue:8083
+      ACTIVITY_SERVICE_URL: http://activity:8084
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+    depends_on:
+      auth:
+        condition: service_healthy
+      project:
+        condition: service_healthy
+      issue:
+        condition: service_healthy
+      activity:
+        condition: service_healthy
+
+  frontend:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      gateway:
+        condition: service_started
+
+volumes:
+  mysql_data:

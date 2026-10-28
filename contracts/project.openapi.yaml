@@ -1,0 +1,105 @@
+openapi: 3.1.0
+info:
+  title: Project API
+  version: 1.0.0
+security: [{ bearerAuth: [] }]
+paths:
+  /projects:
+    get:
+      summary: List projects accessible to the caller (global admins can list all projects)
+      parameters:
+        - name: scope
+          in: query
+          required: false
+          schema: { type: string, enum: [all] }
+          description: Global admins only; retained as an alias since global admins receive all projects by default.
+      responses:
+        '200': { description: Project list; all projects for global admins, memberships for other users }
+        '403': { description: Global admin required when scope=all }
+    post:
+      summary: Create a project and optionally add selected active users as members
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, maxLength: 160 }
+                description: { type: string }
+                member_ids:
+                  type: array
+                  maxItems: 50
+                  uniqueItems: true
+                  items: { type: integer, format: int64, minimum: 1 }
+      responses:
+        '201': { description: Project created; creator is project admin and selected users are members }
+        '400': { description: Invalid project or any selected user is inactive or unknown }
+        '502': { description: Auth service unavailable while validating selected users }
+  /projects/{projectId}:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      summary: Get project details
+      responses:
+        '200': { description: Project }
+    put:
+      summary: Update a project
+      responses:
+        '200': { description: Updated }
+    delete:
+      summary: Soft-delete a project
+      description: Only the project creator (owner_id) or a global admin may delete it. The project is hidden from active listings and access checks; its issue history is retained.
+      responses:
+        '204': { description: Project archived; issue history retained }
+        '403': { description: Project creator or global admin required }
+        '404': { description: Active project not found }
+  /projects/{projectId}/members:
+    get:
+      summary: List stored project members and include the requesting global admin as a synthetic member when not already listed
+      responses:
+        '200': { description: Project member IDs and roles; synthetic is true for the non-persisted global-admin member }
+        '403': { description: User is not a project member or global administrator }
+    post:
+      summary: Add an active account to a project (project or global admin only)
+      responses:
+        '201': { description: Member added }
+        '403': { description: Project admin role required }
+        '400': { description: Target account is inactive or does not exist }
+    patch:
+      summary: Change a project member role (project or global admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, role]
+              properties:
+                user_id: { type: integer, format: int64 }
+                role: { type: string, enum: [admin, member] }
+      responses:
+        '200': { description: Member role updated }
+        '403': { description: Project admin role required }
+        '409': { description: Project must retain an administrator }
+    delete:
+      summary: Remove a project member using user_id query parameter (project or global admin only)
+      responses:
+        '204': { description: Member removed }
+  /projects/{projectId}/members/check:
+    get:
+      summary: Check whether the caller has project access or whether a target user is a stored project member
+      parameters:
+        - { name: user_id, in: query, description: Optional target user ID; the caller has effective access as a global admin and may check themselves, while other targets must have a stored active membership, schema: { type: integer, format: int64 } }
+      responses:
+        '200': { description: Membership result }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

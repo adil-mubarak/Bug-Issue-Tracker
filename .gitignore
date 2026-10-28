@@ -1,0 +1,10 @@
+.env
+.DS_Store
+coverage.out
+dist/
+node_modules/
+*.log
+frontend/test-results/
+frontend/playwright-report/
+__pycache__/
+*.py[cod]

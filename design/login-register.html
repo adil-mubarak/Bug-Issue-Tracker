@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Trackline - Engineering Workspace Login</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-tertiary-container": "#ffd4a4",
+            "background": "#f8f9ff",
+            "outline": "#777587",
+            "tertiary-container": "#885500",
+            "on-surface": "#0b1c30",
+            "surface-tint": "#4d44e3",
+            "on-primary": "#ffffff",
+            "primary-container": "#4f46e5",
+            "on-primary-container": "#dad7ff",
+            "on-primary-fixed": "#0f0069",
+            "surface-container-highest": "#d3e4fe",
+            "surface-bright": "#f8f9ff",
+            "inverse-on-surface": "#eaf1ff",
+            "inverse-primary": "#c3c0ff",
+            "on-secondary-fixed": "#131b2e",
+            "on-secondary": "#ffffff",
+            "on-background": "#0b1c30",
+            "on-primary-fixed-variant": "#3323cc",
+            "primary-fixed": "#e2dfff",
+            "secondary": "#565e74",
+            "surface-container": "#e5eeff",
+            "on-secondary-container": "#5c647a",
+            "tertiary-fixed-dim": "#ffb95f",
+            "primary": "#3525cd",
+            "surface-container-lowest": "#ffffff",
+            "primary-fixed-dim": "#c3c0ff",
+            "outline-variant": "#c7c4d8",
+            "tertiary": "#684000",
+            "inverse-surface": "#213145",
+            "error": "#ba1a1a",
+            "on-error-container": "#93000a",
+            "surface-dim": "#cbdbf5",
+            "on-tertiary-fixed-variant": "#653e00",
+            "on-error": "#ffffff",
+            "on-secondary-fixed-variant": "#3f465c",
+            "surface-container-low": "#eff4ff",
+            "error-container": "#ffdad6",
+            "secondary-fixed": "#dae2fd",
+            "tertiary-fixed": "#ffddb8",
+            "secondary-fixed-dim": "#bec6e0",
+            "on-tertiary-fixed": "#2a1700"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "gutter": "1rem",
+            "space-lg": "1rem",
+            "space-md": "0.75rem",
+            "space-xl": "1.5rem",
+            "space-xs": "0.25rem",
+            "margin": "1.5rem",
+            "space-sm": "0.5rem",
+            "gutter-dense": "0.5rem",
+            "margin-panel": "1rem"
+          },
+          "fontFamily": {
+            "label-sm": ["Inter"],
+            "headline-md": ["Inter"],
+            "headline-sm": ["Inter"],
+            "code-sm": ["Inter"],
+            "display": ["Inter"],
+            "headline-lg": ["Inter"],
+            "body-md": ["Inter"],
+            "label-md": ["Inter"],
+            "body-sm": ["Inter"],
+            "body-lg": ["Inter"]
+          },
+          "fontSize": {
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "headline-md": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "headline-sm": ["15px", { "lineHeight": "20px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "code-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "display": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "headline-lg": ["22px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "body-md": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "label-md": ["13px", { "lineHeight": "18px", "fontWeight": "500" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+            "body-lg": ["15px", { "lineHeight": "22px", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface antialiased min-h-screen overflow-x-hidden selection:bg-primary selection:text-on-primary">
+<!-- Main 50/50 Desktop Split Layout Container -->
+<main class="w-full min-h-screen grid grid-cols-1 lg:grid-cols-2">
+<!-- LEFT COLUMN: Brand & Value Proposition (Deep Engineering Indigo/Slate canvas) -->
+<div class="relative bg-inverse-surface text-inverse-on-surface p-8 lg:p-14 flex flex-col justify-between overflow-hidden border-r border-outline/20">
+<!-- Ambient Gradient Glow Effects -->
+<div class="absolute -top-32 -left-32 w-96 h-96 bg-primary/25 rounded-full blur-3xl pointer-events-none"></div>
+<div class="absolute bottom-10 right-0 w-80 h-80 bg-surface-tint/15 rounded-full blur-3xl pointer-events-none"></div>
+<!-- Top Header Brand Section -->
+<div class="relative z-10">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center shadow-lg shadow-primary-container/30 border border-primary-fixed-dim/30">
+<span class="material-symbols-outlined text-on-primary text-xl">folder</span>
+</div>
+<div>
+<div class="text-headline-md font-headline-md text-on-primary tracking-tight flex items-center gap-2">
+              Trackline
+              <span class="text-label-sm font-label-sm px-2 py-0.5 rounded-full bg-primary-fixed/20 text-inverse-primary border border-inverse-primary/30">v2.4</span>
+</div>
+<p class="text-body-sm font-body-sm text-secondary-fixed-dim">Engineering Workspace</p>
+</div>
+</div>
+</div>
+<!-- Central Value Proposition & Interactive Mockup -->
+<div class="relative z-10 my-10 max-w-xl">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-high/15 border border-outline-variant/20 text-inverse-primary text-label-sm font-label-sm mb-6">
+<span class="w-1.5 h-1.5 rounded-full bg-surface-tint animate-pulse"></span>
+          Engineered for keyboard-first developers
+        </div>
+<h1 class="text-display font-display text-on-primary tracking-tight mb-4">
+          Issue tracking built for high-velocity engineering teams.
+        </h1>
+<p class="text-body-lg font-body-lg text-secondary-fixed-dim mb-8">
+          Linear speed. Jira precision. Built with keyboard shortcuts, git integrations, and real-time multiplayer sync.
+        </p>
+<!-- Floating UI Miniature Card (High-fidelity Mockup) -->
+<div class="relative rounded-xl bg-surface-container-lowest/10 backdrop-blur-md border border-white/10 p-5 shadow-2xl shadow-black/40 hover:border-primary-fixed-dim/40 transition-all duration-300">
+<!-- Card Top Bar -->
+<div class="flex items-center justify-between border-b border-white/10 pb-3 mb-3">
+<div class="flex items-center gap-2">
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded bg-white/10 text-inverse-primary font-mono font-medium">TRK-122</span>
+<span class="text-label-sm font-label-sm px-2 py-0.5 rounded bg-error/20 text-error-container border border-error/30 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">priority_high</span>
+                Urgent
+              </span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-code-sm font-code-sm text-secondary-fixed-dim font-mono">Sprint 34</span>
+<div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+</div>
+</div>
+<!-- Card Title & Context -->
+<div class="mb-4">
+<h3 class="text-headline-sm font-headline-sm text-on-primary mb-1">
+              Optimize canvas rasterization for 60fps graph rendering
+            </h3>
+<p class="text-body-sm font-body-sm text-secondary-fixed-dim">
+              Refactor virtualized DOM nodes within board column viewport container.
+            </p>
+</div>
+<!-- Git Automation Indicator Pill -->
+<div class="mb-4 bg-black/40 rounded-lg p-2.5 border border-white/5 flex items-center justify-between">
+<div class="flex items-center gap-2 overflow-hidden text-ellipsis">
+<span class="material-symbols-outlined text-sm text-inverse-primary">commit</span>
+<code class="text-code-sm font-code-sm text-inverse-on-surface font-mono">git checkout -b trk-122-perf</code>
+</div>
+<span class="text-label-sm font-label-sm text-secondary-fixed-dim shrink-0 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs text-primary-fixed">sync</span>
+              Synced
+            </span>
+</div>
+<!-- Card Footer Anatomy: Live Avatars & Status Chip -->
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-2">
+<div class="flex -space-x-1.5 items-center">
+<!-- Live Avatar 1 -->
+<img class="w-6 h-6 rounded-full ring-2 ring-inverse-surface object-cover" data-alt="Close up professional portrait of Alex Rivers, lead engineering architect with dark glasses in a tech office with subtle blue ambient monitors." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0rjHds_OuCr-wCzIgEhSO9VqEKB_IHD3jRyXZl2Lq0KalZJ76y4eFphosK6L2bjZDRCIT_COQcV8VkCvMITzpuoCSY7YIaN-ST5hnm6L5vUZrmur6Fp42GkhQ2D3yB55JVZnCpLMi8mJwjQA-_FdVSS3pCdgcMkh9rD6r2tTUrJqBXXaJ7JCwFD5JK01Ghu_w65qNQFjrYGqGh2XFKk8fX4Qc5a4J00CfFKwf6NcibJMZLfYJk4cn"/>
+<!-- Live Avatar 2 -->
+<img class="w-6 h-6 rounded-full ring-2 ring-inverse-surface object-cover" data-alt="Portrait of senior frontend engineer Elena smiling in front of a clean minimalist developer setup with warm studio light." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD7n54TEHHrjLT2YkgrtQ74kiEHg545TU_trnp7lXN0Qdv3I8CwvjSmv_Ii83Omd0qqgpCGxEIcLURn_RvMzqIuqzKkXRzM9k_x_WeYpQqeIaeK_ICdCkojhOwR3EZ9jzvPnnzEK7IS1eT6VeL5H_VXLlWoSPAiIzcaT3h2AoZOnkgUdBJGVOQKccM6pJ72N4wSeww4wLwuxr_232VSJpXyghskcQUVuVAMyeEQeRjdoQCPHJuxv7tR"/>
+<span class="w-6 h-6 rounded-full bg-surface-container-high/40 text-on-primary text-[10px] flex items-center justify-center font-bold ring-2 ring-inverse-surface">+3</span>
+</div>
+<span class="text-label-sm font-label-sm text-secondary-fixed-dim ml-1">Live active editing</span>
+</div>
+<div class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/5 border border-white/10 text-on-primary text-label-sm font-label-sm">
+<span class="material-symbols-outlined text-xs text-tertiary-fixed-dim">autorenew</span>
+<span>In Progress</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Social Proof / Testimonial -->
+<div class="relative z-10 pt-6 border-t border-white/10">
+<div class="flex items-start gap-4">
+<img class="w-11 h-11 rounded-full object-cover border border-white/20 shrink-0" data-alt="Professional studio portrait of Elena Rostova, VP of Engineering, with soft natural backlighting and modern corporate technical attire." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAqxllw-t4_oYStVs7B_hyup4OKPbIv-v-f50IybWsoF5gF42lolfdxGq9GKk0kNqRN3ub-lWGFfePs9lY8IEnvoUDj6HiVoOJ3Pv9olWGSD7y3lCdCu8kvwNpKZO1Gr1rw8P0WMz4kkNDE63cWlclPLclEWU9ss_OSOxlxHVBxh8V8l3jiu0b68kPK0ScHdGGgKXyHmt7GT7x6VeIhdRi0CaTCKN4YkwbQbAvGFdzLTVnJgQSglmoG"/>
+<div>
+<p class="text-body-md font-body-md text-inverse-on-surface italic mb-1.5">
+              “Trackline cut our sprint triage time in half. It feels as fast as a native app with zero spreadsheet fatigue.”
+            </p>
+<div class="text-label-sm font-label-sm text-secondary-fixed-dim">
+<span class="text-on-primary font-medium">Elena Rostova</span> — VP of Engineering at Vektor Labs
+            </div>
+</div>
+</div>
+</div>
+</div>
+<!-- RIGHT COLUMN: Authentication Form (Pure White Surface) -->
+<div class="bg-surface-container-lowest text-on-surface flex flex-col justify-between p-8 sm:p-12 lg:p-16 min-h-screen">
+<!-- Top Bar: Switch Tab Toggle (Login / Register) -->
+<div class="flex items-center justify-between mb-8">
+<div class="lg:hidden flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary text-base">folder</span>
+</div>
+<span class="text-headline-sm font-headline-sm text-on-surface">Trackline</span>
+</div>
+<div class="ml-auto inline-flex items-center bg-surface-container-low p-1 rounded-lg border border-outline-variant/40">
+<button class="px-3.5 py-1.5 text-label-md font-label-md rounded-md bg-surface-container-lowest text-on-surface shadow-sm transition-all duration-150" id="tab-login" type="button">
+            Sign in
+          </button>
+<button class="px-3.5 py-1.5 text-label-md font-label-md rounded-md text-secondary hover:text-on-surface transition-all duration-150" id="tab-register" type="button">
+            Sign up
+          </button>
+</div>
+</div>
+<!-- Centered Authentication Card Section -->
+<div class="max-w-md w-full mx-auto my-auto py-4">
+<!-- Header Text -->
+<div class="mb-8">
+<h2 class="text-headline-lg font-headline-lg text-on-surface tracking-tight mb-2" id="auth-title">
+            Welcome back
+          </h2>
+<p class="text-body-md font-body-md text-secondary" id="auth-subtitle">
+            Enter your credentials to access your workspaces
+          </p>
+</div>
+<!-- Social Authentication Buttons -->
+<div class="grid grid-cols-2 gap-3 mb-6">
+<!-- GitHub OAuth Button -->
+<button class="flex items-center justify-center gap-2.5 h-10 px-3 rounded-lg border border-outline-variant/60 bg-surface-container-lowest hover:bg-surface-container-low text-on-surface text-label-md font-label-md transition-colors duration-150 active:scale-[0.98]" type="button">
+<svg aria-hidden="true" class="w-4 h-4 fill-current text-on-surface" viewbox="0 0 24 24">
+<path clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" fill-rule="evenodd"></path>
+</svg>
+<span>GitHub</span>
+</button>
+<!-- Google OAuth Button -->
+<button class="flex items-center justify-center gap-2.5 h-10 px-3 rounded-lg border border-outline-variant/60 bg-surface-container-lowest hover:bg-surface-container-low text-on-surface text-label-md font-label-md transition-colors duration-150 active:scale-[0.98]" type="button">
+<svg class="w-4 h-4" viewbox="0 0 24 24">
+<path d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.14z" fill="#4285F4"></path>
+<path d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z" fill="#34A853"></path>
+<path d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z" fill="#FBBC05"></path>
+<path d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z" fill="#EA4335"></path>
+</svg>
+<span>Google</span>
+</button>
+</div>
+<!-- Horizontal Divider -->
+<div class="relative flex items-center justify-center my-6">
+<div class="border-t border-outline-variant/40 w-full"></div>
+<span class="bg-surface-container-lowest px-3 text-label-sm font-label-sm text-secondary uppercase tracking-wider">
+            Or continue with email
+          </span>
+</div>
+<!-- Login / Registration Form -->
+<form class="space-y-4" onsubmit="event.preventDefault();">
+<!-- Name field for registration state -->
+<div class="hidden" id="name-field-group">
+<label class="block text-label-md font-label-md text-on-surface mb-1.5" for="name">
+              Full name
+            </label>
+<div class="relative">
+<span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-secondary">
+<span class="material-symbols-outlined text-lg">person</span>
+</span>
+<input class="w-full pl-9 pr-3 py-2 text-body-md font-body-md rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-on-surface placeholder:text-secondary/60 focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 transition-all outline-none" id="name" name="name" placeholder="Alex Rivers" type="text"/>
+</div>
+</div>
+<!-- Email Input -->
+<div>
+<label class="block text-label-md font-label-md text-on-surface mb-1.5" for="email">
+              Email address
+            </label>
+<div class="relative">
+<span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-secondary">
+<span class="material-symbols-outlined text-lg">mail</span>
+</span>
+<input class="w-full pl-9 pr-3 py-2 text-body-md font-body-md rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-on-surface placeholder:text-secondary/60 focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 transition-all outline-none" id="email" name="email" placeholder="name@company.com" required="" type="email" value="alex.rivers@engineering.io"/>
+</div>
+</div>
+<!-- Password Input -->
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<label class="text-label-md font-label-md text-on-surface" for="password">
+                Password
+              </label>
+<a class="text-label-sm font-label-sm text-primary hover:underline transition-all" href="#" id="forgot-password-link">
+                Forgot password?
+              </a>
+</div>
+<div class="relative">
+<span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-secondary">
+<span class="material-symbols-outlined text-lg">lock</span>
+</span>
+<input class="w-full pl-9 pr-10 py-2 text-body-md font-body-md rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-on-surface placeholder:text-secondary/60 focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 transition-all outline-none" id="password" name="password" placeholder="••••••••••••" required="" type="password" value="secrettoken123"/>
+<button class="absolute inset-y-0 right-0 pr-3 flex items-center text-secondary hover:text-on-surface" id="toggle-password" type="button">
+<span class="material-symbols-outlined text-lg">visibility</span>
+</button>
+</div>
+</div>
+<!-- Remember Me Checkbox -->
+<div class="flex items-center justify-between pt-1">
+<label class="flex items-center gap-2 cursor-pointer select-none">
+<input checked="" class="w-4 h-4 rounded text-primary-container focus:ring-primary-container/30 border-outline-variant/60 transition" type="checkbox"/>
+<span class="text-label-sm font-label-sm text-secondary">Remember me for 30 days</span>
+</label>
+<span class="text-label-sm font-label-sm text-secondary flex items-center gap-1">
+<span class="material-symbols-outlined text-xs text-primary">verified_user</span>
+              SSO enabled
+            </span>
+</div>
+<!-- Primary Submit Button -->
+<div class="pt-2">
+<button class="w-full h-11 rounded-xl bg-primary-container hover:bg-primary text-on-primary font-label-md text-label-md flex items-center justify-center gap-2 shadow-sm shadow-primary/20 transition-all duration-150 active:scale-[0.99]" id="submit-button" type="submit">
+<span id="button-label">Sign in to Trackline</span>
+<span class="material-symbols-outlined text-base">arrow_forward</span>
+</button>
+</div>
+</form>
+<!-- Keyboard Shortcut Hint Callout -->
+<div class="mt-6 p-3 rounded-lg bg-surface-container-low border border-outline-variant/40 flex items-center justify-between">
+<div class="flex items-center gap-2 text-body-sm font-body-sm text-secondary">
+<span class="material-symbols-outlined text-base text-primary">keyboard</span>
+<span>Speed tip: Press <kbd class="px-1.5 py-0.5 rounded bg-surface-container-lowest border border-outline-variant text-[11px] font-mono text-on-surface">Enter ↵</kbd> to submit anytime.</span>
+</div>
+</div>
+</div>
+<!-- Footer Links: Terms, Privacy, Status -->
+<footer class="pt-6 border-t border-outline-variant/20 flex flex-wrap items-center justify-between gap-4 text-label-sm font-label-sm text-secondary">
+<div class="flex items-center gap-4">
+<a class="hover:text-on-surface transition-colors" href="#">Terms of Service</a>
+<span class="text-outline-variant">•</span>
+<a class="hover:text-on-surface transition-colors" href="#">Privacy Policy</a>
+<span class="text-outline-variant">•</span>
+<a class="hover:text-on-surface transition-colors" href="#">Security Center</a>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<a class="hover:text-on-surface transition-colors" href="#">All systems operational</a>
+</div>
+</footer>
+</div>
+</main>
+<!-- Interactive State Script for Login / Register Toggle & Password Masking -->
+<script>
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+    const authTitle = document.getElementById('auth-title');
+    const authSubtitle = document.getElementById('auth-subtitle');
+    const nameFieldGroup = document.getElementById('name-field-group');
+    const forgotPasswordLink = document.getElementById('forgot-password-link');
+    const buttonLabel = document.getElementById('button-label');
+    const togglePassword = document.getElementById('toggle-password');
+    const passwordInput = document.getElementById('password');
+
+    tabLogin.addEventListener('click', () => {
+      // Toggle Tab Styles
+      tabLogin.className = 'px-3.5 py-1.5 text-label-md font-label-md rounded-md bg-surface-container-lowest text-on-surface shadow-sm transition-all duration-150';
+      tabRegister.className = 'px-3.5 py-1.5 text-label-md font-label-md rounded-md text-secondary hover:text-on-surface transition-all duration-150';
+      
+      // Update Content
+      authTitle.textContent = 'Welcome back';
+      authSubtitle.textContent = 'Enter your credentials to access your workspaces';
+      buttonLabel.textContent = 'Sign in to Trackline';
+      nameFieldGroup.classList.add('hidden');
+      forgotPasswordLink.classList.remove('hidden');
+    });
+
+    tabRegister.addEventListener('click', () => {
+      // Toggle Tab Styles
+      tabRegister.className = 'px-3.5 py-1.5 text-label-md font-label-md rounded-md bg-surface-container-lowest text-on-surface shadow-sm transition-all duration-150';
+      tabLogin.className = 'px-3.5 py-1.5 text-label-md font-label-md rounded-md text-secondary hover:text-on-surface transition-all duration-150';
+      
+      // Update Content
+      authTitle.textContent = 'Create your account';
+      authSubtitle.textContent = 'Get started with high-velocity issue tracking';
+      buttonLabel.textContent = 'Create workspace account';
+      nameFieldGroup.classList.remove('hidden');
+      forgotPasswordLink.classList.add('hidden');
+    });
+
+    togglePassword.addEventListener('click', () => {
+      const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passwordInput.setAttribute('type', type);
+      const iconSpan = togglePassword.querySelector('span');
+      iconSpan.textContent = type === 'password' ? 'visibility' : 'visibility_off';
+    });
+  </script>
+</body></html>

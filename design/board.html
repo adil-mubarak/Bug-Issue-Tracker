@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Trackline - Mobile App v2.4 Board</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-tertiary-container": "#ffd4a4",
+            "background": "#f8f9ff",
+            "outline": "#777587",
+            "tertiary-container": "#885500",
+            "on-surface": "#0b1c30",
+            "surface-tint": "#4d44e3",
+            "on-primary": "#ffffff",
+            "primary-container": "#4f46e5",
+            "on-tertiary": "#ffffff",
+            "surface-variant": "#d3e4fe",
+            "on-primary-container": "#dad7ff",
+            "on-primary-fixed": "#0f0069",
+            "surface-container-highest": "#d3e4fe",
+            "surface-bright": "#f8f9ff",
+            "inverse-on-surface": "#eaf1ff",
+            "inverse-primary": "#c3c0ff",
+            "on-secondary-fixed": "#131b2e",
+            "on-secondary": "#ffffff",
+            "on-background": "#0b1c30",
+            "on-primary-fixed-variant": "#3323cc",
+            "primary-fixed": "#e2dfff",
+            "secondary": "#565e74",
+            "surface-container": "#e5eeff",
+            "on-secondary-container": "#5c647a",
+            "tertiary-fixed-dim": "#ffb95f",
+            "primary": "#3525cd",
+            "surface-container-lowest": "#ffffff",
+            "primary-fixed-dim": "#c3c0ff",
+            "outline-variant": "#c7c4d8",
+            "tertiary": "#684000",
+            "inverse-surface": "#213145",
+            "error": "#ba1a1a",
+            "on-surface-variant": "#464555",
+            "surface-container-high": "#dce9ff",
+            "secondary-container": "#dae2fd",
+            "surface": "#f8f9ff",
+            "on-error-container": "#93000a",
+            "surface-dim": "#cbdbf5",
+            "on-tertiary-fixed-variant": "#653e00",
+            "on-error": "#ffffff",
+            "on-secondary-fixed-variant": "#3f465c",
+            "surface-container-low": "#eff4ff",
+            "error-container": "#ffdad6",
+            "secondary-fixed": "#dae2fd",
+            "tertiary-fixed": "#ffddb8",
+            "secondary-fixed-dim": "#bec6e0",
+            "on-tertiary-fixed": "#2a1700"
+          },
+          borderRadius: {
+            DEFAULT: "0.25rem",
+            lg: "0.5rem",
+            xl: "0.75rem",
+            full: "9999px"
+          },
+          spacing: {
+            gutter: "1rem",
+            "space-lg": "1rem",
+            "space-md": "0.75rem",
+            "space-xl": "1.5rem",
+            "space-xs": "0.25rem",
+            margin: "1.5rem",
+            "space-sm": "0.5rem",
+            "gutter-dense": "0.5rem",
+            "margin-panel": "1rem"
+          },
+          fontFamily: {
+            "label-sm": ["Inter"],
+            "headline-md": ["Inter"],
+            "headline-sm": ["Inter"],
+            "code-sm": ["Inter"],
+            display: ["Inter"],
+            "headline-lg": ["Inter"],
+            "body-md": ["Inter"],
+            "label-md": ["Inter"],
+            "body-sm": ["Inter"],
+            "body-lg": ["Inter"]
+          },
+          fontSize: {
+            "label-sm": ["11px", { lineHeight: "14px", letterSpacing: "0.01em", fontWeight: "500" }],
+            "headline-md": ["18px", { lineHeight: "24px", letterSpacing: "-0.01em", fontWeight: "600" }],
+            "headline-sm": ["15px", { lineHeight: "20px", letterSpacing: "-0.005em", fontWeight: "600" }],
+            "code-sm": ["12px", { lineHeight: "16px", letterSpacing: "-0.01em", fontWeight: "500" }],
+            display: ["28px", { lineHeight: "36px", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "headline-lg": ["22px", { lineHeight: "28px", letterSpacing: "-0.015em", fontWeight: "600" }],
+            "body-md": ["13px", { lineHeight: "18px", fontWeight: "400" }],
+            "label-md": ["13px", { lineHeight: "18px", fontWeight: "500" }],
+            "body-sm": ["12px", { lineHeight: "16px", fontWeight: "400" }],
+            "body-lg": ["15px", { lineHeight: "22px", fontWeight: "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      height: 6px;
+      width: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #c7c4d8;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface antialiased overflow-x-hidden min-w-[1440px]">
+<!-- Fixed SideNavBar (Shared Component from JSON) -->
+<aside class="fixed top-0 left-0 h-screen w-60 z-30 bg-surface-container-lowest border-r border-outline-variant shadow-sm flex flex-col justify-between p-4">
+<!-- Top Block: Brand + Navigation -->
+<div class="flex flex-col gap-5">
+<!-- Workspace Brand -->
+<div class="flex items-center gap-2.5 px-2 py-1">
+<div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-on-primary shadow-sm shadow-primary/20">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">view_kanban</span>
+</div>
+<div class="flex flex-col leading-tight">
+<span class="text-headline-sm font-headline-sm text-primary tracking-tight">Trackline</span>
+<span class="text-body-sm font-body-sm text-secondary">Engineering Workspace</span>
+</div>
+</div>
+<!-- Main Navigation Links from JSON -->
+<nav class="flex flex-col gap-1">
+<!-- Projects (Active based on context) -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-container-high text-primary font-medium transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="folder">folder</span>
+<span class="text-label-md font-label-md flex-1">Projects</span>
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+</a>
+<!-- My issues -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-secondary hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="checklist">checklist</span>
+<span class="text-label-md font-label-md flex-1">My issues</span>
+<span class="px-1.5 py-0.5 rounded-full text-label-sm font-label-sm bg-surface-container text-secondary font-medium">12</span>
+</a>
+<!-- Activity -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-secondary hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="pulse">switch_account</span>
+<span class="text-label-md font-label-md flex-1">Activity</span>
+</a>
+<!-- Analytics -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-secondary hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="monitoring">monitoring</span>
+<span class="text-label-md font-label-md flex-1">Analytics</span>
+</a>
+</nav>
+<!-- Projects Group Section -->
+<div class="pt-3 border-t border-outline-variant/40 flex flex-col gap-1.5">
+<div class="flex items-center justify-between px-2 text-label-sm font-label-sm text-secondary tracking-wider uppercase">
+<span>PROJECTS</span>
+<span class="material-symbols-outlined text-[14px] cursor-pointer hover:text-on-surface">expand_more</span>
+</div>
+<div class="flex flex-col gap-0.5 mt-1">
+<a class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-surface-container text-on-surface font-medium transition-colors" href="#">
+<span class="w-2 h-2 rounded-full bg-primary-container"></span>
+<span class="text-body-md font-body-md truncate">Mobile App v2.4</span>
+</a>
+<a class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-secondary hover:bg-surface-container-low transition-colors" href="#">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<span class="text-body-md font-body-md truncate">Cloud Core API</span>
+</a>
+<a class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-secondary hover:bg-surface-container-low transition-colors" href="#">
+<span class="w-2 h-2 rounded-full bg-amber-500"></span>
+<span class="text-body-md font-body-md truncate">Web Frontend</span>
+</a>
+<a class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-secondary hover:bg-surface-container-low transition-colors" href="#">
+<span class="w-2 h-2 rounded-full bg-purple-500"></span>
+<span class="text-body-md font-body-md truncate">Internal Tools</span>
+</a>
+</div>
+</div>
+</div>
+<!-- Bottom Actions & User Profile -->
+<div class="flex flex-col gap-3 pt-3 border-t border-outline-variant/40">
+<!-- + New project CTA -->
+<button class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg border border-outline-variant/60 text-label-md font-label-md text-on-surface hover:bg-surface-container-low transition-colors duration-150 active:scale-[0.99]">
+<span class="material-symbols-outlined text-[16px] text-primary">add</span>
+<span>+ New project</span>
+</button>
+<!-- Alex Rivers User Row -->
+<div class="flex items-center justify-between p-1.5 rounded-lg hover:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-2.5">
+<img class="w-8 h-8 rounded-full object-cover ring-1 ring-outline-variant" data-alt="Close up professional portrait of Alex Rivers, a senior engineering lead wearing neutral modern spectacles and a dark textured overshirt against a soft-lit, minimalist engineering studio backdrop." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC5f8KiEAT1PqMY12fALboOb53eMtD5nugd4D5y1NkoOepQA6otVbPCksJMDwOZ6k5yBJeLBhVtF6j4gC7qTm9LfRp2tm_35La5_QPDAzfuxUN098Igmvjg315MYOkf8QorqxU1L6nTrfzZe3j35Ma--cxo9kv6zg1un9vVp75oKoqhKCQMPboy6QzcQqd1KFTC91lY1KWvbuZRIMDb8SWYBZI619zdHfHG-ywk5NuKbTyd2O57qgQi"/>
+<div class="flex flex-col leading-tight">
+<span class="text-label-md font-label-md text-on-surface font-semibold">Alex Rivers</span>
+<span class="text-label-sm font-label-sm text-secondary">Lead Engineer</span>
+</div>
+</div>
+<button class="text-secondary hover:text-on-surface p-1 rounded transition-colors" title="Workspace settings">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</div>
+</div>
+</aside>
+<!-- Main Canvas Container -->
+<div class="pl-60 min-h-screen flex flex-col bg-background">
+<!-- TopNavBar (Shared Component from JSON) -->
+<header class="sticky top-0 right-0 h-14 z-20 bg-surface-container-lowest border-b border-outline-variant shadow-sm flex items-center justify-between px-6">
+<!-- Left: Breadcrumbs & Search -->
+<div class="flex items-center gap-6">
+<!-- Breadcrumb Links -->
+<nav class="flex items-center gap-2 text-body-md font-body-md">
+<span class="text-secondary hover:text-on-surface transition-colors cursor-pointer">Projects</span>
+<span class="text-outline-variant text-[12px]">/</span>
+<span class="text-secondary hover:text-on-surface transition-colors cursor-pointer">Mobile App v2.4</span>
+<span class="text-outline-variant text-[12px]">/</span>
+<span class="text-on-surface font-semibold">Board</span>
+</nav>
+<!-- Global Search Bar with Cmd+K pill -->
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-secondary text-[16px]">search</span>
+<input class="h-8 pl-9 pr-14 w-64 rounded-lg bg-surface-container-low border border-outline-variant/60 text-body-sm font-body-sm text-on-surface placeholder:text-secondary focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all" placeholder="Search issues, keys..." type="text"/>
+<span class="absolute right-2 text-label-sm font-code-sm text-secondary bg-surface-container px-1.5 py-0.5 rounded border border-outline-variant/40">⌘K</span>
+</div>
+</div>
+<!-- Right: Action cluster -->
+<div class="flex items-center gap-3">
+<button class="relative w-8 h-8 rounded-lg flex items-center justify-center text-secondary hover:text-on-surface hover:bg-surface-container transition-colors" title="Notifications">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary-container ring-2 ring-surface-container-lowest"></span>
+</button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-secondary hover:text-on-surface hover:bg-surface-container transition-colors" title="Help">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+</button>
+<div class="h-4 w-px bg-outline-variant mx-1"></div>
+<!-- Primary Action CTA -->
+<button class="h-8 px-3.5 rounded-lg bg-primary hover:bg-primary-container text-on-primary text-label-md font-label-md flex items-center gap-1.5 shadow-sm shadow-primary/25 transition-all duration-150 active:scale-95">
+<span class="material-symbols-outlined text-[16px]">add</span>
+<span>+ New issue</span>
+</button>
+<img class="w-7 h-7 rounded-full object-cover ring-1 ring-outline-variant ml-1 cursor-pointer" data-alt="Small round avatar icon representing Alex Rivers with clean engineering aesthetic, crisp lighting, slate background tones, and soft rim lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBoJDAqpl93m6Ubqujpf8FLODIYzqU7cUOGeye4NvAdQnOcluclRPOdeSoKCGtIMz0SB0XXzU4OrERH36waGAA5H0YFHgd8a2MVsMsStT9bMz8JmTZL7qKasgpos2WCS9jP1cCMV6ZN4bu9k-B2DOcXpyZFyDnWYhN1yXPiacp8U_i30jgabpIKC7PeRidHcNSx2ppBvJuub9LQcYoxIKg4fD-BN7P8Fh4hsBQjouYwLfUDVLZPMYX8"/>
+</div>
+</header>
+<!-- Main Workspace Content -->
+<main class="flex-1 p-6 flex flex-col gap-6">
+<!-- Project Header Area -->
+<div class="flex flex-col gap-3">
+<div class="flex items-start justify-between">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-3">
+<h1 class="text-headline-lg font-headline-lg text-on-surface tracking-tight">Mobile App v2.4</h1>
+<span class="px-2 py-0.5 rounded text-label-sm font-label-sm bg-surface-container-high text-primary font-medium border border-surface-variant">Active Sprint</span>
+</div>
+<p class="text-body-md font-body-md text-secondary max-w-2xl">
+              iOS &amp; Android cross-platform client rewrite and performance overhaul
+            </p>
+</div>
+<!-- Avatar Stack + Stat Chips -->
+<div class="flex items-center gap-6">
+<!-- Member avatar stack -->
+<div class="flex items-center -space-x-2">
+<img class="w-7 h-7 rounded-full ring-2 ring-surface-container-lowest object-cover" data-alt="Portrait avatar of a female product designer wearing minimal rounded glasses in a bright architectural light studio." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCEXd6IxAwZcAhinDBtgdR1NpfDCK3jAv5BWxOZoBhCKdvtGH3ZB3xp3avwsaFA3IvSXv_LBnl0pbFI_NmmDF4G4Xk2hr0xVvToc7YvIrJXH1Doq2zaGtjRknEmahq9rgogkbrtbh2h0tc9DoEA-Im0VWDTPUV6vySOhRdVQTiX-xlz7tUnajs0fZOhkRCenxzwAIx8DXYOPtAckzWK-kA9yEZnlm1IDAHpq2aWYkKv2aT8BvuBfyuA"/>
+<img class="w-7 h-7 rounded-full ring-2 ring-surface-container-lowest object-cover" data-alt="Portrait avatar of an iOS mobile engineer smiling outdoors in neutral daylight with a minimalist jacket." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCgSGH6wN58U3FkGHCbWZJqRKXVqOohO3qcFsllGeF3ocZoTkcNh5YpI9-DMEyGSxqpiDK9SX7FJFawRUxfTx7Xj-0xANbd-GjVbAQMsIMN3y0yRGmGz4Un7U8jDCTBlKevUfDr8vFW11XXrkXrX3FYtlVdc4gN9XkydVlIDEyzhRJeAOVSC5bdXRtxTO2mVbuxJpu2eblWhhDrVE9lHWQ3_r1tMyM27JJ1iP78Hi1HZTeKd13WgbsI"/>
+<img class="w-7 h-7 rounded-full ring-2 ring-surface-container-lowest object-cover" data-alt="Portrait avatar of a systems performance engineer with short dark hair in front of a soft neutral interior studio." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwId7IjE8lO5LSmgbbHZ6Y-T00MG68bMrJRkkYIlSsnS6wcXZXO3kqiz5gElcPBBS1YkM9al68zbe1ECBFF5Dd3MAoy0gnMM5pIISco71uUZtXtZJZEl9NWylLVJP0gteDuLCfzP9FlAAPaPY5GzTwa1XWKs7mKhtkRurw7Uuq_LJxGrXRy3IIAvwSWHISUnoZl5ig2V_ocNuYAJ8WzSa4MBDsovjmNV-Yphf8D2l6k0Sy7Dmc__Ji"/>
+<div class="w-7 h-7 rounded-full ring-2 ring-surface-container-lowest bg-surface-container text-secondary text-label-sm font-label-sm flex items-center justify-center font-semibold">
+                +3
+              </div>
+</div>
+<div class="h-5 w-px bg-outline-variant"></div>
+<!-- Small Stat Chips -->
+<div class="flex items-center gap-2">
+<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-container-high border border-surface-variant text-label-sm font-label-sm text-primary">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span>Open: 18</span>
+</div>
+<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 border border-emerald-200 text-label-sm font-label-sm text-emerald-700">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+<span>Completed: 42</span>
+</div>
+<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-50 border border-rose-200 text-label-sm font-label-sm text-rose-700">
+<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+<span>High priority: 4</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Filter & Toolbar Bar -->
+<div class="flex items-center justify-between pt-2">
+<!-- Left side filters -->
+<div class="flex items-center gap-2 flex-wrap">
+<!-- Search Inside Board -->
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-2.5 text-secondary text-[16px]">filter_list</span>
+<input class="h-8 pl-8 pr-3 w-44 rounded-lg bg-surface-container-lowest border border-outline-variant text-body-sm font-body-sm text-on-surface placeholder:text-secondary focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" placeholder="Filter issues..." type="text"/>
+</div>
+<!-- Filter Dropdown Pills -->
+<button class="h-8 px-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant text-label-sm font-label-sm text-secondary hover:text-on-surface hover:bg-surface-container-low flex items-center gap-1.5 transition-colors">
+<span>Status: All</span>
+<span class="material-symbols-outlined text-[14px]">expand_more</span>
+</button>
+<button class="h-8 px-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant text-label-sm font-label-sm text-secondary hover:text-on-surface hover:bg-surface-container-low flex items-center gap-1.5 transition-colors">
+<span>Assignee: All</span>
+<span class="material-symbols-outlined text-[14px]">expand_more</span>
+</button>
+<button class="h-8 px-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant text-label-sm font-label-sm text-secondary hover:text-on-surface hover:bg-surface-container-low flex items-center gap-1.5 transition-colors">
+<span>Priority: Any</span>
+<span class="material-symbols-outlined text-[14px]">expand_more</span>
+</button>
+<button class="h-8 px-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant text-label-sm font-label-sm text-secondary hover:text-on-surface hover:bg-surface-container-low flex items-center gap-1.5 transition-colors">
+<span>Label: Any</span>
+<span class="material-symbols-outlined text-[14px]">expand_more</span>
+</button>
+<button class="h-8 px-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant text-label-sm font-label-sm text-on-surface font-medium hover:bg-surface-container-low flex items-center gap-1.5 transition-colors">
+<span>Sort: Priority ↓</span>
+<span class="material-symbols-outlined text-[14px]">swap_vert</span>
+</button>
+</div>
+<!-- View Mode Toggle (Board / List) -->
+<div class="flex items-center p-0.5 bg-surface-container-low border border-outline-variant/60 rounded-lg">
+<button class="flex items-center gap-1.5 px-3 py-1 rounded bg-surface-container-lowest text-primary text-label-sm font-label-sm shadow-xs font-semibold">
+<span class="material-symbols-outlined text-[14px]">view_column</span>
+<span>Board</span>
+</button>
+<button class="flex items-center gap-1.5 px-3 py-1 rounded text-secondary hover:text-on-surface text-label-sm font-label-sm transition-colors">
+<span class="material-symbols-outlined text-[14px]">format_list_bulleted</span>
+<span>List</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Kanban Board Columns (3 Distinct Columns Grid) -->
+<div class="grid grid-cols-3 gap-5 items-start">
+<!-- ================= Column 1: 'To do' ================= -->
+<div class="bg-surface-container-low/60 rounded-xl p-3 flex flex-col gap-3 border border-outline-variant/40">
+<!-- Column Header -->
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full border-2 border-secondary"></span>
+<h2 class="text-headline-sm font-headline-sm text-on-surface">To do</h2>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-secondary text-label-sm font-label-sm font-medium">5</span>
+</div>
+<div class="flex items-center gap-1 text-secondary">
+<button class="p-1 hover:text-on-surface rounded hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[16px]">add</span>
+</button>
+<button class="p-1 hover:text-on-surface rounded hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Cards List -->
+<div class="flex flex-col gap-2.5">
+<!-- Card TRK-128 -->
+<article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 flex flex-col gap-2 cursor-pointer group">
+<div class="flex items-center justify-between text-code-sm font-code-sm text-secondary">
+<div class="flex items-center gap-1.5">
+<span class="font-medium text-secondary">TRK-128</span>
+</div>
+<div class="flex items-center gap-1 text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded" title="High Priority">
+<span class="material-symbols-outlined text-[14px] text-rose-600" style="font-variation-settings: 'FILL' 1;">priority_high</span>
+<span class="text-label-sm font-label-sm font-semibold">High</span>
+</div>
+</div>
+<p class="text-body-md font-label-md text-on-surface group-hover:text-primary transition-colors leading-snug">
+                Implement biometric FaceID authentication on app cold start
+              </p>
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-1.5">
+<span class="text-label-sm font-label-sm px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-medium">Security</span>
+<span class="text-label-sm font-label-sm px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-medium">iOS</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-1 text-secondary text-label-sm font-label-sm">
+<span class="material-symbols-outlined text-[14px]">chat_bubble_outline</span>
+<span>3</span>
+</div>
+<img class="w-5 h-5 rounded-full object-cover ring-1 ring-outline-variant" data-alt="Assignee engineer avatar wearing deep graphite jacket, soft ambient studio lighting, serene high-tech atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9qOs081K8SSWD9vEq4K197daGefNQjMjwPQ1Z4LAzQXsSkkIXJk0yRAXR3yGni60yO05n-pDEyNTkax7-2_dOCFAk1-XYReAVnBSw1Q3QaDr9hz0aVISI0EWTiWv9dEhIML_-skDfGydfVN_XPQdRsXhtnBY-QrS0aMX3xq4f3qhNAKK4HY67yGgH4xiiX_2pbKdSvgf1ewgKje4hLOgjZyTd8N3Mq2YZPtPmbgpKCBb4N_KP3F4n"/>
+</div>
+</div>
+</article>
+<!-- Card TRK-134 -->
+<article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 flex flex-col gap-2 cursor-pointer group">
+<div class="flex items-center justify-between text-code-sm font-code-sm text-secondary">
+<div class="flex items-center gap-1.5">
+<span class="font-medium text-secondary">TRK-134</span>
+</div>
+<div class="flex items-center gap-1 text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded" title="Medium Priority">
+<span class="material-symbols-outlined text-[14px] text-amber-600">signal_cellular_alt_2_bar</span>
+<span class="text-label-sm font-label-sm font-semibold">Medium</span>
+</div>
+</div>
+<p class="text-body-md font-label-md text-on-surface group-hover:text-primary transition-colors leading-snug">
+                Offline cache sync conflict resolution policy
+              </p>
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-1.5">
+<span class="text-label-sm font-label-sm px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-medium">Backend</span>
+<span class="text-label-sm font-label-sm px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-medium">Sync</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-1 text-secondary text-label-sm font-label-sm">
+<span class="material-symbols-outlined text-[14px]">chat_bubble_outline</span>
+<span>1</span>
+</div>
+<img class="w-5 h-5 rounded-full object-cover ring-1 ring-outline-variant" data-alt="Assignee software engineer portrait avatar in modern minimalist engineering setup with neutral light tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBWZJ1kWHMK6Zauv3KJ6tTY4uUcG5UKqiA9MWnoFh3mlR9vGzok--qeZ4V50YFz4TYhVqx4QIrNgnwnUWHPk1M3YmQdctrrdIPVnZNvu0Se_NUBzxOZSlHX4xWKQFL5ERE5cDrSHDzuPaTWGl521SMtvjU0W-k2akXMzOMojxmg9eKcx93IU19uDPGBEkNukoRrPfZRkMevu9s_H-7FNtY2OqB78mc3o-WUrx3i7tGLsMcim81GVxrR"/>
+</div>
+</div>
+</article>
+</div>
+<!-- Bottom Add Ghost Button -->
+<button class="w-full py-2 px-3 rounded-lg border border-dashed border-outline-variant/80 hover:border-primary text-secondary hover:text-primary text-label-md font-label-md flex items-center justify-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[16px]">add</span>
+<span>+ Add issue</span>
+</button>
+</div>
+<!-- ================= Column 2: 'In progress' ================= -->
+<div class="bg-surface-container-low/60 rounded-xl p-3 flex flex-col gap-3 border border-outline-variant/40">
+<!-- Column Header -->
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-primary-container"></span>
+<h2 class="text-headline-sm font-headline-sm text-on-surface">In progress</h2>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-primary text-label-sm font-label-sm font-medium">3</span>
+</div>
+<div class="flex items-center gap-1 text-secondary">
+<button class="p-1 hover:text-on-surface rounded hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[16px]">add</span>
+</button>
+<button class="p-1 hover:text-on-surface rounded hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Cards List -->
+<div class="flex flex-col gap-2.5">
+<!-- Card TRK-119 -->
+<article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 flex flex-col gap-2 cursor-pointer group">
+<div class="flex items-center justify-between text-code-sm font-code-sm text-secondary">
+<div class="flex items-center gap-1.5">
+<span class="font-medium text-secondary">TRK-119</span>
+</div>
+<div class="flex items-center gap-1 text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded" title="High Priority">
+<span class="material-symbols-outlined text-[14px] text-rose-600" style="font-variation-settings: 'FILL' 1;">priority_high</span>
+<span class="text-label-sm font-label-sm font-semibold">High</span>
+</div>
+</div>
+<p class="text-body-md font-label-md text-on-surface group-hover:text-primary transition-colors leading-snug">
+                Push notification deep linking handler for chat mentions
+              </p>
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-1.5">
+<span class="text-label-sm font-label-sm px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-medium">Mobile</span>
+<span class="text-label-sm font-label-sm px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 font-medium">Bug</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-1 text-secondary text-label-sm font-label-sm">
+<span class="material-symbols-outlined text-[14px]">chat_bubble_outline</span>
+<span>6</span>
+</div>
+<img class="w-5 h-5 rounded-full object-cover ring-1 ring-outline-variant" data-alt="Portrait avatar of a senior front-end software engineer with clean aesthetic and neutral modern lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDdhfcadNCEbnPiUL2Eo222L05p6uqv9wpQSkQfqMjRT2t1I5ORqiAplJBzbn9opqQq0PUTxq1sm6kcXO8IyDzMBGXj0XZR5VuToUsX6L0UFxmsDLyjVKc6OVrj4zdPOfhkdZcBAkUywI8xwKlzOKfIud1QlRm3nfLIwNrvQvHZuKrfjHvRG9w_h-Qo2GtAP8gdj7k0zJGaSq9VF1eYJyHelZMVi9QpptzBQVm_FeZzIXo8QLjktp90"/>
+</div>
+</div>
+</article>
+<!-- Card TRK-122 [DRAGGING STATE] -->
+<article class="bg-surface-container-lowest border-2 border-primary-container rounded-xl p-3 shadow-2xl flex flex-col gap-2 cursor-grabbing z-10 transition-transform select-none" style="transform: rotate(2deg) scale(1.02);">
+<div class="flex items-center justify-between text-code-sm font-code-sm text-secondary">
+<div class="flex items-center gap-1.5">
+<span class="font-semibold text-primary">TRK-122</span>
+<span class="material-symbols-outlined text-[14px] text-primary">drag_indicator</span>
+</div>
+<div class="flex items-center gap-1 text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded font-semibold" title="High Priority">
+<span class="material-symbols-outlined text-[14px] text-rose-600" style="font-variation-settings: 'FILL' 1;">priority_high</span>
+<span class="text-label-sm font-label-sm">High</span>
+</div>
+</div>
+<p class="text-body-md font-label-md text-on-surface leading-snug font-semibold">
+                Optimize startup render pass and bundle size
+              </p>
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-1.5">
+<span class="text-label-sm font-label-sm px-1.5 py-0.5 rounded bg-primary-fixed text-primary font-medium">Performance</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-1 text-secondary text-label-sm font-label-sm">
+<span class="material-symbols-outlined text-[14px]">chat_bubble_outline</span>
+<span>4</span>
+</div>
+<img class="w-5 h-5 rounded-full object-cover ring-2 ring-primary" data-alt="Assignee software engineer portrait avatar representing performance engineer with focused modern tech expression." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDjtDvgUil1YocueR-oByDEHzbE4EgNn-dF9_BN2HMdut05rUk3yfh2xZZIhMsse2KOekhjEvUGfdt_82HrVPkgHh1mGfYI1YYoiqYW-SCJ7HVvWhw-GZCxngoTnpMDtD0UcYrD_pRr3vMOyJtYV0lqycgQWIIkCY7x1nIqWUX1ZbdsWw4DlKRCCespao0nsXulRdmFyfSyNRQCCQxFgVS6oTjIIuJEwaBoE_3j24qJbMD5mq76Jp9t"/>
+</div>
+</div>
+</article>
+<!-- Drag Target Drop Zone Preview -->
+<div class="border-2 border-dashed border-primary-container/80 bg-surface-container-high/40 rounded-xl h-24 flex items-center justify-center text-primary text-body-md font-label-md transition-all gap-2 animate-pulse">
+<span class="material-symbols-outlined text-[20px]">south</span>
+<span>Drop to move to In progress</span>
+</div>
+</div>
+<!-- Bottom Add Ghost Button -->
+<button class="w-full py-2 px-3 rounded-lg border border-dashed border-outline-variant/80 hover:border-primary text-secondary hover:text-primary text-label-md font-label-md flex items-center justify-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[16px]">add</span>
+<span>+ Add issue</span>
+</button>
+</div>
+<!-- ================= Column 3: 'Done' ================= -->
+<div class="bg-surface-container-low/60 rounded-xl p-3 flex flex-col gap-3 border border-outline-variant/40">
+<!-- Column Header -->
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+<h2 class="text-headline-sm font-headline-sm text-on-surface">Done</h2>
+<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-label-sm font-label-sm font-medium">8</span>
+</div>
+<div class="flex items-center gap-1 text-secondary">
+<button class="p-1 hover:text-on-surface rounded hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[16px]">add</span>
+</button>
+<button class="p-1 hover:text-on-surface rounded hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Cards List -->
+<div class="flex flex-col gap-2.5">
+<!-- Card TRK-98 -->
+<article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 flex flex-col gap-2 cursor-pointer group opacity-95">
+<div class="flex items-center justify-between text-code-sm font-code-sm text-secondary">
+<div class="flex items-center gap-1.5">
+<span class="font-medium text-secondary">TRK-98</span>
+<span class="material-symbols-outlined text-[14px] text-emerald-600">check_circle</span>
+</div>
+<div class="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded" title="Low Priority">
+<span class="material-symbols-outlined text-[14px] text-emerald-600">arrow_downward</span>
+<span class="text-label-sm font-label-sm font-semibold">Low</span>
+</div>
+</div>
+<p class="text-body-md font-label-md text-on-surface group-hover:text-primary transition-colors leading-snug line-through text-secondary">
+                Update splash screen branding and typography
+              </p>
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-1.5">
+<span class="text-label-sm font-label-sm px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-medium">Design</span>
+<span class="text-label-sm font-label-sm px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-medium">Assets</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-1 text-secondary text-label-sm font-label-sm">
+<span class="material-symbols-outlined text-[14px]">chat_bubble_outline</span>
+<span>2</span>
+</div>
+<img class="w-5 h-5 rounded-full object-cover ring-1 ring-outline-variant" data-alt="Avatar portrait of design system specialist with minimalist aesthetic in bright natural lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDcIwNg0ii7exli6WBL8-fYGkW5UsukvK2X1e8aumZJ6S8OAl1XaXE2vMuMwvytOQrE_Hb5nHECQOJamnG9pqfQXBsCkAUUHLAcU2BhcQXMsfT57nVTksgFXT22VVs0mXQ3d8dOrFrzjjgWQMsfpcdg3_ncnxXwU30gxvhECvbPslRwQxmZEhAq0Et_7GLwP8FpyKmob3pFTtFdBrVQXkp_W8VqMIQEfy_8-wj_c9U-QrV4Sjz8udzj"/>
+</div>
+</div>
+</article>
+<!-- Card TRK-105 -->
+<article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 flex flex-col gap-2 cursor-pointer group opacity-95">
+<div class="flex items-center justify-between text-code-sm font-code-sm text-secondary">
+<div class="flex items-center gap-1.5">
+<span class="font-medium text-secondary">TRK-105</span>
+<span class="material-symbols-outlined text-[14px] text-emerald-600">check_circle</span>
+</div>
+<div class="flex items-center gap-1 text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded" title="Medium Priority">
+<span class="material-symbols-outlined text-[14px] text-amber-600">signal_cellular_alt_2_bar</span>
+<span class="text-label-sm font-label-sm font-semibold">Medium</span>
+</div>
+</div>
+<p class="text-body-md font-label-md text-on-surface group-hover:text-primary transition-colors leading-snug line-through text-secondary">
+                Fix race condition during WebSocket reconnection
+              </p>
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-1.5">
+<span class="text-label-sm font-label-sm px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 font-medium">Bug</span>
+<span class="text-label-sm font-label-sm px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-medium">Core</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-1 text-secondary text-label-sm font-label-sm">
+<span class="material-symbols-outlined text-[14px]">chat_bubble_outline</span>
+<span>5</span>
+</div>
+<img class="w-5 h-5 rounded-full object-cover ring-1 ring-outline-variant" data-alt="Portrait avatar of a senior backend engineer working on concurrency protocols in a tech office space." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIN_f4cSGNQRkEsd_GI5BCdknKQRHzVec6BfTCanrf7hrOfAGpfmyxRYXBhbokuI5wSaU7CDcg65xWlnhPAmKoRILvwZCXD-iwZ6xgCH4kvm_2GTkk9uu-nNRPDlFujsvTGOdpWYE7qMJUhjPTk1cX7vvnguPE7WMBVz-eLVgFfSUYhrW66CjkOoVlrJ17LUkNzHAqo43pWydVPh-xvpEUHBvmJJw7rOzjC2EQEXQrE8C2uUnHYGOG"/>
+</div>
+</div>
+</article>
+</div>
+<!-- Bottom Add Ghost Button -->
+<button class="w-full py-2 px-3 rounded-lg border border-dashed border-outline-variant/80 hover:border-primary text-secondary hover:text-primary text-label-md font-label-md flex items-center justify-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[16px]">add</span>
+<span>+ Add issue</span>
+</button>
+</div>
+</div>
+</main>
+</div>
+</body></html>
