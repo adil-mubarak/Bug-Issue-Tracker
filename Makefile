@@ -10,13 +10,15 @@ MIGRATE_TARGET_DB = $(if $(filter all,$(MIGRATE_DATABASE)),auth_db,$(MIGRATE_DAT
 DC = $(COMPOSE) -f $(COMPOSE_FILE)
 DATABASES = auth_db project_db issue_db activity_db
 
-.PHONY: help run-bug-issue-tracker run-frontend run-backend run-auth run-project run-issue run-activity run-gateway docker-up docker-app-up docker-status docker-down migrate-up migrate-down migrate-status fmt vet test lint build
+.PHONY: help run-trackline run-bug-issue-tracker run-frontend run-backend run-auth run-project run-issue run-activity run-gateway docker-up docker-app-up docker-status docker-down migrate-up migrate-down migrate-status fmt vet test lint build
 
 help: ## List available targets (default)
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-25s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-run-bug-issue-tracker: ## Run the Go backend and React frontend locally (start docker-up first)
+run-trackline: ## Run Trackline's Go backend and React frontend locally (start docker-up first)
 	$(MAKE) -j6 run-auth run-project run-issue run-activity run-gateway run-frontend
+
+run-bug-issue-tracker: run-trackline ## Legacy alias for run-trackline
 
 run-backend: ## Run all Go services and the gateway locally (start docker-up first)
 	$(MAKE) -j5 run-auth run-project run-issue run-activity run-gateway

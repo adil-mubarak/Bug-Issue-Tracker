@@ -1,6 +1,6 @@
-# Project context
+# Trackline project context
 
-This is a Go microservices project with a React/Vite frontend. Implementation is
+Trackline is a Go microservices project with a React/Vite frontend. Implementation is
 tracked by `Build_Plan_Bug_Issue_Tracker.md`. MySQL uses one database per
 service, with golang-migrate SQL migrations.
 
