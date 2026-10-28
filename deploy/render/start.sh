@@ -60,17 +60,32 @@ wait_http() {
 }
 
 run_migration() {
-  local database="$1" url="$2" attempt
+  local database="$1" url="$2" attempt log_file
+  log_file="/tmp/migrate-${database}.log"
   for attempt in {1..30}; do
-    if migrate -path "/app/migrations/${database}" -database "$url" up >/tmp/migrate.log 2>&1; then
-      cat /tmp/migrate.log
+    if migrate -path "/app/migrations/${database}" -database "$url" up >"$log_file" 2>&1; then
+      # Migration drivers can include a DSN in error output. Never write URL
+      # credentials to the Render log stream.
+      sed -E 's#(mysql://[^:/@]+:)[^@]*@#\1[REDACTED]@#g' "$log_file"
       return 0
     fi
     sleep 2
   done
-  echo "Migration failed for ${database}; check database connectivity and credentials." >&2
+  echo "Migration failed for ${database} after ${attempt} attempts. Last migrate output (database credentials redacted):" >&2
+  sed -E 's#(mysql://[^:/@]+:)[^@]*@#\1[REDACTED]@#g' "$log_file" >&2
   return 1
 }
+
+# Bind Render's assigned port before potentially slow NATS startup or remote
+# database migrations. /ready continues to report unavailable until every
+# internal service is healthy (checked below).
+export GATEWAY_ADDR=":${PORT}"
+export AUTH_SERVICE_URL=http://127.0.0.1:8081
+export PROJECT_SERVICE_URL=http://127.0.0.1:8082
+export ISSUE_SERVICE_URL=http://127.0.0.1:8083
+export ACTIVITY_SERVICE_URL=http://127.0.0.1:8084
+export CORS_ALLOWED_ORIGINS
+start_child gateway
 
 # The broker and all internal HTTP services listen only on loopback. Render's
 # public ingress reaches only the gateway on its assigned PORT.
@@ -114,12 +129,6 @@ export PROJECT_SERVICE_URL
 start_child activity
 wait_http activity http://127.0.0.1:8084/ready
 
-export GATEWAY_ADDR=":${PORT}"
-export PROJECT_SERVICE_URL
-export ISSUE_SERVICE_URL=http://127.0.0.1:8083
-export ACTIVITY_SERVICE_URL=http://127.0.0.1:8084
-export CORS_ALLOWED_ORIGINS
-start_child gateway
 wait_http "gateway" "http://127.0.0.1:${PORT}/ready"
 
 echo "Trackline backend started on port ${PORT}"
