@@ -100,7 +100,7 @@ The work is planned in phases so each service and its documentation can be devel
 7. **Frontend:** React application using the gateway
 8. **Ship:** tests, observability, seed data, and final documentation
 
-See [`Build_Plan_Bug_Issue_Tracker.md`](Build_Plan_Bug_Issue_Tracker.md) for the detailed app and assignment plan.
+See [`Trackline.md`](Trackline.md) for the detailed app and assignment plan.
 
 ## Getting started
 
@@ -199,7 +199,7 @@ To remove the local database data as well, run `docker compose down -v`.
 
 ## Documentation
 
-- [`Build_Plan_Bug_Issue_Tracker.md`](Build_Plan_Bug_Issue_Tracker.md) — detailed phased build plan
+- [`Build_Plan_Bug_Issue_Tracker.md`](Trackline.md) — detailed phased build plan
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — architecture and service/event-flow details
 - [`docs/TESTING.md`](docs/TESTING.md) — Go, Playwright, seed, and verification notes
 - [`docs/CONTEXT.md`](docs/CONTEXT.md) — implementation and environment context
